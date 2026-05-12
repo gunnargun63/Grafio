@@ -1,0 +1,3505 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grafio – fysik dataanalyse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f5f4ef;
+    --panel-border: #e8e5dc;
+    --text: #2a2a2a;
+    --muted: #6b6b6b;
+    --data-col: #eaf3fb;
+    --data-col-border: #cfe1f2;
+    --calc-col: #f5f4ef;
+    --calc-col-border: #e8e5dc;
+    --const-col: #f4ecdb;
+    --const-col-border: #e6d8b5;
+    --blue: #378ADD;
+    --green: #1D9E75;
+    --brown: #993C1D;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+  }
+
+  .app-subtitle {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: var(--text);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    margin: 0 0 20px 0;
+    font-size: 13px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 14px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  button:hover { background: #ecebe4; }
+
+  button.primary {
+    background: var(--blue);
+    color: white;
+    border-color: var(--blue);
+  }
+
+  button.primary:hover { background: #2c75c0; }
+
+  button.danger {
+    color: #a04040;
+  }
+
+  button.small {
+    padding: 3px 8px;
+    font-size: 12px;
+  }
+
+  button.icon {
+    padding: 3px 7px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  button.icon:hover { color: #a04040; background: transparent; }
+
+  select, input[type="text"] {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    background: white;
+  }
+
+  .section {
+    margin-bottom: 28px;
+  }
+
+  /* Konstanter — sidebar til venstre for tabellen */
+  .table-section {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .constants-sidebar {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .table-area {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .constants {
+    background: var(--const-col);
+    border: 1px solid var(--const-col-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .constants h3 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .constants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .const-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .const-item-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .const-item input[type="text"] {
+    width: 70px;
+  }
+
+  .const-symbol-input {
+    width: 50px !important;
+    font-weight: 600;
+  }
+
+  .const-unit-input {
+    width: 50px !important;
+    font-size: 11px;
+  }
+
+  .add-constant-btn {
+    margin-top: 8px;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  /* Når der ingen konstanter er, vises bare en lille tilføj-knap */
+  .constants-collapsed {
+    padding: 0;
+    background: transparent;
+    border: none;
+  }
+
+  /* Tabel */
+  .table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    background: white;
+    box-shadow: var(--shadow);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: auto;
+  }
+
+  th, td {
+    padding: 0;
+    text-align: center;
+    border-right: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  /* Data- og calc-kolonner: bredden tilpasser sig overskriftens længde */
+  th.data-header, th.calc-header,
+  td.data-cell, td.calc-cell {
+    min-width: 110px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  th:last-child, td:last-child { border-right: none; }
+
+  th {
+    background: #fafaf7;
+    padding: 6px 4px;
+    font-weight: 600;
+    font-size: 12px;
+    vertical-align: top;
+  }
+
+  th.data-header { background: var(--data-col); }
+  th.calc-header { background: var(--calc-col); }
+  th.row-num { background: #fafaf7; width: 36px; min-width: 36px; color: var(--muted); font-weight: 400; }
+  th.action-col { width: 36px; min-width: 36px; background: #fafaf7; }
+  td.row-num, td.action-cell { width: 36px; }
+
+  .col-name-input {
+    /* size-attribut sætter bredden i tegn — vi opdaterer den dynamisk i JS.
+       min-width sikrer at korte symboler stadig har plads til klik. */
+    min-width: 50px;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 4px;
+    font-family: inherit;
+  }
+
+  .col-name-input:focus {
+    outline: 1px solid var(--blue);
+    background: white;
+  }
+
+  .col-formula {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    padding: 0 4px;
+    font-family: 'Menlo', 'Monaco', monospace;
+    cursor: pointer;
+  }
+
+  .col-formula:hover { color: var(--text); }
+
+  .col-header-wrap {
+    position: relative;
+  }
+
+  .col-remove-x {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 18px;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+
+  .col-remove-x:hover {
+    color: #a04040;
+    background: rgba(160, 64, 64, 0.1);
+  }
+
+  .col-edit-pencil {
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+
+  .col-edit-pencil:hover { color: var(--text); }
+
+  .col-header-actions {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 2px;
+  }
+
+  td input.cell {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    padding: 6px 4px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  td input.cell:focus {
+    outline: 1px solid var(--blue);
+    background: white;
+  }
+
+  td.data-cell { background: var(--data-col); }
+  td.calc-cell { background: var(--calc-col); color: #333; padding: 6px 4px; }
+  td.row-num { background: #fafaf7; color: var(--muted); font-size: 12px; padding: 6px 4px; }
+  td.action-cell { background: #fafaf7; }
+
+  tr.excluded td.data-cell,
+  tr.excluded td.calc-cell {
+    opacity: 0.35;
+    text-decoration: line-through;
+  }
+
+  .include-checkbox {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .table-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Beregnet kolonne formel-editor */
+  .formula-editor {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-top: 10px;
+  }
+
+  .formula-editor h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .formula-fields {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .field label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .field input { width: 200px; }
+  .field input.short { width: 100px; }
+  .field input.long { width: 300px; }
+
+  .formula-help {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  .formula-help code {
+    background: white;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+    font-size: 11px;
+  }
+
+  /* Grafer */
+  .graph-block {
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 18px;
+    background: white;
+    box-shadow: var(--shadow);
+  }
+
+  .graph-controls {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  .graph-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 320px;
+  }
+
+  .chart-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .axis-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 14px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-radius: 4px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .axis-label {
+    font-weight: 600;
+    color: var(--muted);
+    min-width: 14px;
+  }
+
+  .axis-sep {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .axis-input {
+    width: 70px;
+    padding: 3px 6px;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    font-family: inherit;
+  }
+
+  .axis-input:focus {
+    outline: 1px solid var(--blue);
+    background: white;
+  }
+
+  .chart-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .chart-copy-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  .result-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .result-box .formula {
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 13px;
+    color: var(--brown);
+  }
+
+  .result-box .rmse {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .result-box .warn {
+    color: #a04040;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .modal-bg.visible { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+
+  .modal h3 {
+    margin: 0 0 14px 0;
+    font-size: 16px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+
+  .saved-list {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+  }
+
+  .saved-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  .saved-item:last-child { border-bottom: none; }
+
+  .saved-item:hover { background: var(--panel); }
+
+  .saved-item-name { cursor: pointer; flex: 1; }
+
+  .saved-item-meta { font-size: 11px; color: var(--muted); }
+
+  /* Responsivt */
+  @media (max-width: 800px) {
+    .graph-charts {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .autosave-indicator {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  /* Toast besked */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2a2a2a;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Brugerdefineret regression editor */
+  .custom-reg-editor {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .custom-reg-editor h4 {
+    margin: 0 0 6px 0;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .custom-reg-fields {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .custom-reg-fields .field input {
+    width: 160px;
+  }
+  .custom-reg-fields .field input.formula-field {
+    width: 280px;
+    font-family: 'Menlo', 'Monaco', monospace;
+  }
+  .custom-param {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    background: white;
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+  }
+  .custom-param-name {
+    font-weight: 600;
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 12px;
+    min-width: 12px;
+  }
+  .custom-param input {
+    width: 60px !important;
+    border: none;
+    background: transparent;
+    text-align: right;
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 12px;
+  }
+  .custom-reg-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .custom-reg-hint code {
+    background: white;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+    font-size: 11px;
+  }
+
+  /* Græsk-tegn-palette */
+  .symbol-palette {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 280px;
+    background: white;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    padding: 12px;
+    z-index: 90;
+    display: none;
+  }
+
+  .symbol-palette.visible { display: block; }
+
+  .symbol-palette-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .symbol-palette-title {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .symbol-palette-section {
+    margin-bottom: 10px;
+  }
+
+  .symbol-palette-section:last-child { margin-bottom: 0; }
+
+  .symbol-palette-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .symbol-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+  }
+
+  .symbol-btn {
+    padding: 6px 0;
+    font-size: 15px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1;
+  }
+
+  .symbol-btn:hover {
+    background: var(--data-col);
+    border-color: var(--blue);
+  }
+
+  .symbol-palette-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<h1>Grafio <span class="app-subtitle">— fysik dataanalyse</span></h1>
+<p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
+
+<div class="toolbar">
+  <button onclick="openSaveModal()" title="Gemmer i browserens lager — virker kun på denne computer/browser">💾 Gem i browser...</button>
+  <button onclick="openLoadModal()" title="Indlæs et forsøg gemt i denne browsers lager">📂 Indlæs fra browser</button>
+  <button onclick="exportJSON()" title="Gem komplet projekt som .json-fil">⬇ Download projekt (.json)</button>
+  <button onclick="document.getElementById('import-file').click()" title="Indlæs .json-fil fra computer">⬆ Indlæs projekt (.json)</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+  <button onclick="exportCSV()" title="Eksporter datatabel som CSV til Excel m.v.">⬇ Download data (.csv)</button>
+  <button onclick="document.getElementById('import-csv-file').click()" title="Indlæs CSV-fil, fx eksporteret fra Graphical Analysis">⬆ Indlæs data (.csv)</button>
+  <input type="file" id="import-csv-file" accept=".csv,.txt" style="display:none" onchange="importCSV(event)">
+  <button class="danger" onclick="confirmReset()">🗑 Nulstil alt</button>
+  <button onclick="toggleSymbolPalette()" title="Indsæt græske bogstaver og specialtegn" style="font-family: serif;">Ω Tegn</button>
+  <span class="autosave-indicator" id="autosave-indicator"></span>
+</div>
+
+<!-- Datatabel med konstanter som sidebar -->
+<div class="section">
+  <h2>Datatabel</h2>
+  <div class="table-section">
+    <!-- Konstanter til venstre -->
+    <aside class="constants-sidebar" id="constants-sidebar">
+      <div class="constants" id="constants-box">
+        <h3>Konstanter</h3>
+        <div class="constants-list" id="constants-list">
+          <!-- konstanter indsættes her -->
+        </div>
+        <button class="add-constant-btn" onclick="addConstant()">+ Tilføj konstant</button>
+      </div>
+    </aside>
+
+    <!-- Selve tabellen -->
+    <div class="table-area">
+      <div class="table-wrapper">
+        <table id="data-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-actions">
+        <button onclick="addRow()">+ Tilføj række</button>
+        <button onclick="addDataColumn()">+ Tilføj datakolonne</button>
+        <button onclick="openFormulaEditor()">+ Tilføj beregnet kolonne</button>
+      </div>
+
+      <!-- Formel-editor -->
+      <div class="formula-editor" id="formula-editor" style="display:none;">
+        <h3 id="formula-editor-title">Ny beregnet kolonne</h3>
+        <div class="formula-fields">
+          <div class="field">
+            <label>Symbol</label>
+            <input type="text" id="formula-symbol" class="short" placeholder="fx R">
+          </div>
+          <div class="field">
+            <label>Enhed (valgfri)</label>
+            <input type="text" id="formula-unit" class="short" placeholder="fx Ω">
+          </div>
+          <div class="field">
+            <label>Formel</label>
+            <input type="text" id="formula-expr" class="long" placeholder="fx U/I">
+          </div>
+          <button class="primary" onclick="saveFormulaColumn()">Gem kolonne</button>
+          <button onclick="closeFormulaEditor()">Annullér</button>
+        </div>
+        <div class="formula-help">
+          <strong>Tilgængelige operatorer:</strong> <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>^</code>
+          &nbsp;&nbsp;<strong>Funktioner:</strong> <code>sin(x)</code> <code>cos(x)</code> <code>tan(x)</code> (i grader),
+          <code>asin</code> <code>acos</code> <code>atan</code>, <code>ln</code>, <code>log</code>, <code>exp</code>, <code>sqrt</code>, <code>abs</code>
+          <br><strong>Referencer:</strong> Brug kolonnens symbol eller en konstants symbol, fx <code>U/I</code> eller <code>N - N_b</code>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grafer -->
+<div class="section">
+  <h2>Grafer</h2>
+  <div id="graphs-container"></div>
+  <button onclick="addGraph()">+ Tilføj graf</button>
+</div>
+
+<!-- Græsk/specialtegn-palette -->
+<div class="symbol-palette" id="symbol-palette">
+  <div class="symbol-palette-header">
+    <span class="symbol-palette-title">Indsæt tegn</span>
+    <button class="icon" onclick="toggleSymbolPalette()" title="Luk">×</button>
+  </div>
+  <div class="symbol-palette-section">
+    <div class="symbol-palette-label">Enheder og hævede</div>
+    <div class="symbol-grid" id="symbol-grid-units"></div>
+  </div>
+  <div class="symbol-palette-section">
+    <div class="symbol-palette-label">Græske bogstaver (små)</div>
+    <div class="symbol-grid" id="symbol-grid-lower"></div>
+  </div>
+  <div class="symbol-palette-section">
+    <div class="symbol-palette-label">Græske bogstaver (store)</div>
+    <div class="symbol-grid" id="symbol-grid-upper"></div>
+  </div>
+  <div class="symbol-palette-hint">
+    Klik først i det felt hvor du vil indsætte et tegn, klik så på tegnet her.
+  </div>
+</div>
+
+<!-- Modal: Gem -->
+<div class="modal-bg" id="save-modal">
+  <div class="modal">
+    <h3>Gem forsøg i browser</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-top: -8px;">
+      Gemmes i denne browsers lager. Forsvinder hvis du skifter computer eller rydder browser-data.
+      Vil du have en fil du kan flytte eller dele, så brug "Download projekt".
+    </p>
+    <div class="field">
+      <label>Navn</label>
+      <input type="text" id="save-name" class="long" placeholder="fx Boyle-Mariotte 3a">
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeModal('save-modal')">Annullér</button>
+      <button class="primary" onclick="saveNamed()">Gem</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Indlæs -->
+<div class="modal-bg" id="load-modal">
+  <div class="modal">
+    <h3>Indlæs gemt forsøg fra browser</h3>
+    <div class="saved-list" id="saved-list"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('load-modal')">Luk</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: CSV-import -->
+<div class="modal-bg" id="csv-modal">
+  <div class="modal" style="max-width: 720px;">
+    <h3>Indlæs CSV-fil</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-top: -8px;">
+      Vælg hvilke kolonner i filen der skal blive til datakolonner. Beregnede kolonner og grafer bevares.
+    </p>
+    <div id="csv-preview"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('csv-modal')">Annullér</button>
+      <button class="primary" onclick="applyCSVImport()">Indlæs valgte kolonner</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   STATE
+   ===================================================================== */
+
+const state = {
+  constants: [
+    // { symbol: 'g', value: 9.82, unit: 'm/s²' }
+  ],
+  columns: [
+    // { type: 'data'|'calc', symbol: 'U', unit: 'V', formula: 'U/I' (only if calc) }
+  ],
+  rows: [
+    // { included: true, values: { 'U': '1.0', 'I': '0.2' } }
+  ],
+  graphs: [
+    // { id, title, xSym, ySym, regType }
+  ],
+  _graphIdCounter: 1
+};
+
+/* Regressionstyper. label_dropdown bruges i select-dropdown (Unicode-baseret pga.
+   HTML-begrænsninger i <option>). label_html bruges i resultatboksen hvor vi kan
+   vise rigtigt HTML. label_plain bruges som fallback. */
+const REGRESSION_TYPES = [
+  { id: 'none',     label_dropdown: '— ingen regression —',                                    label_html: '— ingen regression —', label_plain: '— ingen regression —' },
+  { id: 'prop',     label_dropdown: 'Proportionalitet   y = a·x',                              label_html: 'Proportionalitet  y = a·x',                                            label_plain: 'Proportionalitet  y = a·x' },
+  { id: 'linear',   label_dropdown: 'Lineær   y = a·x + b',                                    label_html: 'Lineær  y = a·x + b',                                                  label_plain: 'Lineær  y = a·x + b' },
+  { id: 'quad',     label_dropdown: 'Andengrad   y = a·x² + b·x + c',                          label_html: 'Andengrad  y = a·x² + b·x + c',                                        label_plain: 'Andengrad  y = a·x^2 + b·x + c' },
+  { id: 'power',    label_dropdown: 'Potens   y = a·xᵇ',                                       label_html: 'Potens  y = a·x<sup>b</sup>',                                          label_plain: 'Potens  y = a·x^b' },
+  { id: 'exp',      label_dropdown: 'Eksponential   y = a·eᵇˣ',                                label_html: 'Eksponential  y = a·e<sup>b·x</sup>',                                  label_plain: 'Eksponential  y = a·e^(b·x)' },
+  { id: 'exp_off',  label_dropdown: 'Forskudt eksponential   y = a·eᵇˣ + c',                   label_html: 'Forskudt eksponential  y = a·e<sup>b·x</sup> + c',                     label_plain: 'Forskudt eksponential  y = a·e^(b·x) + c' },
+  { id: 'inv',      label_dropdown: 'Invers   y = a/x',                                        label_html: 'Invers  y = a/x',                                                      label_plain: 'Invers  y = a/x' },
+  { id: 'inv_off',  label_dropdown: 'Invers med offset   y = a/(x+b)',                         label_html: 'Invers med offset  y = a/(x+b)',                                       label_plain: 'Invers med offset  y = a/(x+b)' },
+  { id: 'inv2',     label_dropdown: 'Afstandskvadrat   y = a/x²',                              label_html: 'Afstandskvadrat  y = a/x²',                                            label_plain: 'Afstandskvadrat  y = a/x^2' },
+  { id: 'inv2_off', label_dropdown: 'Afstandskvadrat med offset   y = a/(b+x)²',               label_html: 'Afstandskvadrat med offset  y = a/(b+x)²',                             label_plain: 'Afstandskvadrat med offset  y = a/(b+x)^2' },
+  { id: 'sqrt',     label_dropdown: 'Kvadratrod   y = a·√x',                                   label_html: 'Kvadratrod  y = a·√x',  label_plain: 'Kvadratrod  y = a·sqrt(x)' },
+  { id: 'custom',   label_dropdown: 'Brugerdefineret…',                                        label_html: 'Brugerdefineret',                                                      label_plain: 'Brugerdefineret' }
+];
+
+/* =====================================================================
+   NUMBER PARSING (komma eller punktum)
+   ===================================================================== */
+
+function parseNum(s) {
+  if (typeof s === 'number') return s;
+  if (s == null) return NaN;
+  s = String(s).trim();
+  if (s === '') return NaN;
+  return parseFloat(s.replace(',', '.'));
+}
+
+function formatNum(v, sigFigs = 4) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const abs = Math.abs(v);
+  let s;
+  if (abs >= 1e5 || abs < 1e-3) {
+    // Videnskabelig notation
+    const exp = Math.floor(Math.log10(abs));
+    const mantissa = v / Math.pow(10, exp);
+    s = mantissa.toFixed(sigFigs - 1) + '·10' + supExp(exp);
+  } else {
+    // Normal notation: vis altid mindst 1 decimal for at undgå "1235" for "1234.56"
+    const intDigits = Math.max(1, Math.floor(Math.log10(abs)) + 1);
+    const decDigits = Math.max(1, sigFigs - intDigits);
+    s = v.toFixed(decDigits);
+    // Fjern unødvendige bagstillede nuller for store tal
+    if (decDigits > 1) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  }
+  return s.replace('.', ',');
+}
+
+function supExp(exp) {
+  const map = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  return String(exp).split('').map(c => map[c] || c).join('');
+}
+
+/* =====================================================================
+   FORMEL-EVALUERING
+   ===================================================================== */
+
+// Konverter symbolske formler til JS, så de kan evalueres med en kontekst.
+// Erstatter symboler med ctx['symbol'], håndterer ^ -> **, og giver funktioner adgang.
+
+function evalFormula(formula, ctx) {
+  if (!formula) return NaN;
+  // Erstat komma med punktum i tal
+  let expr = formula.replace(/(\d),(\d)/g, '$1.$2');
+  // Erstat ^ med **
+  expr = expr.replace(/\^/g, '**');
+
+  // Brug whitelist tilgang: identificér tokens og oversæt
+  // Funktioner som understøttes
+  const funcs = {
+    'sin':  'Math.sin(deg2rad',
+    'cos':  'Math.cos(deg2rad',
+    'tan':  'Math.tan(deg2rad',
+    'asin': 'rad2deg(Math.asin',
+    'acos': 'rad2deg(Math.acos',
+    'atan': 'rad2deg(Math.atan',
+    'ln':   'Math.log(',
+    'log':  'Math.log10(',
+    'exp':  'Math.exp(',
+    'sqrt': 'Math.sqrt(',
+    'abs':  'Math.abs('
+  };
+
+  // Erstat funktioner med extra åbnende paren der lukker rigtigt;
+  // Vi bygger en tokenizer i stedet for at lave fragile regex.
+  const tokens = tokenize(expr);
+  const transformed = tokens.map(t => {
+    if (t.type === 'ident') {
+      if (funcs[t.value] !== undefined) {
+        // Vi skal håndtere at sin/cos/tan har en ekstra paren grundet deg2rad
+        return { type: 'func_call', value: t.value };
+      }
+      // Det er en variabel
+      return { type: 'var', value: t.value };
+    }
+    return t;
+  });
+
+  // Byg JS-streng
+  let js = '';
+  for (let i = 0; i < transformed.length; i++) {
+    const t = transformed[i];
+    if (t.type === 'func_call') {
+      const name = t.value;
+      if (name === 'sin' || name === 'cos' || name === 'tan') {
+        // Forventer at næste token er '('
+        js += `Math.${name}(deg2rad(`;
+        // Find matching paren and replace it with double close
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter ${name}`);
+        // Generer hvad der er imellem rekursivt
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + '))';
+        i = close;
+      } else if (name === 'asin' || name === 'acos' || name === 'atan') {
+        js += `rad2deg(Math.${name === 'asin' ? 'asin' : name === 'acos' ? 'acos' : 'atan'}(`;
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter ${name}`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + '))';
+        i = close;
+      } else if (name === 'ln') {
+        js += 'Math.log(';
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter ln`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + ')';
+        i = close;
+      } else if (name === 'log') {
+        js += 'Math.log10(';
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter log`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + ')';
+        i = close;
+      } else if (name === 'exp') {
+        js += 'Math.exp(';
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter exp`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + ')';
+        i = close;
+      } else if (name === 'sqrt') {
+        js += 'Math.sqrt(';
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter sqrt`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + ')';
+        i = close;
+      } else if (name === 'abs') {
+        js += 'Math.abs(';
+        const close = findMatchingParen(transformed, i + 1);
+        if (close === -1) throw new Error(`Manglende afsluttende parentes efter abs`);
+        const inner = renderTokens(transformed.slice(i + 2, close));
+        js += inner + ')';
+        i = close;
+      }
+    } else if (t.type === 'var') {
+      js += `(ctx[${JSON.stringify(t.value)}])`;
+    } else {
+      js += t.value;
+    }
+  }
+
+  try {
+    const fn = new Function('ctx', 'deg2rad', 'rad2deg', `return (${js});`);
+    const deg2rad = x => x * Math.PI / 180;
+    const rad2deg = x => x * 180 / Math.PI;
+    return fn(ctx, deg2rad, rad2deg);
+  } catch (e) {
+    return NaN;
+  }
+}
+
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  while (i < expr.length) {
+    const c = expr[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (/[a-zA-Z_]/.test(c)) {
+      let j = i;
+      while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) j++;
+      tokens.push({ type: 'ident', value: expr.slice(i, j) });
+      i = j;
+    } else if (/[0-9.]/.test(c)) {
+      let j = i;
+      while (j < expr.length && /[0-9.eE+\-]/.test(expr[j])) {
+        // Håndtér at + og - kun er del af tal hvis de kommer efter e/E
+        if ((expr[j] === '+' || expr[j] === '-') &&
+            !(j > i && (expr[j-1] === 'e' || expr[j-1] === 'E'))) {
+          break;
+        }
+        j++;
+      }
+      tokens.push({ type: 'num', value: expr.slice(i, j) });
+      i = j;
+    } else if (c === '*' && expr[i+1] === '*') {
+      tokens.push({ type: 'op', value: '**' });
+      i += 2;
+    } else {
+      tokens.push({ type: 'op', value: c });
+      i++;
+    }
+  }
+  return tokens;
+}
+
+function findMatchingParen(tokens, openIdx) {
+  if (tokens[openIdx] == null || tokens[openIdx].value !== '(') return -1;
+  let depth = 1;
+  for (let i = openIdx + 1; i < tokens.length; i++) {
+    if (tokens[i].value === '(') depth++;
+    else if (tokens[i].value === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function renderTokens(tokens) {
+  let out = '';
+  for (const t of tokens) {
+    if (t.type === 'var') {
+      out += `(ctx[${JSON.stringify(t.value)}])`;
+    } else if (t.type === 'func_call') {
+      // Hvis vi har en func_call midt i tokens som er givet til renderTokens, lad os
+      // ikke håndtere det her, fordi vi har allerede klaret det på øverste niveau.
+      // Men for at understøtte indlejrede funktionsopkald, lad os rekursere:
+      out += t.value; // simplest: behandl som ident
+    } else {
+      out += t.value;
+    }
+  }
+  // Det her er en lille brist: indlejrede funktionsopkald i renderTokens.
+  // For at gøre det robust evaluerer vi i stedet inner-strengen via en mini rekursion.
+  // I praksis vil vi parse om igen via evalFormula's hovedløb.
+  return out;
+}
+
+// Bedre fremgangsmåde: brug recursive evaluator i stedet.
+// Vi erstatter ovenstående evalFormula med en simplere parser:
+
+function evalFormulaV2(formula, ctx) {
+  if (!formula || !String(formula).trim()) return NaN;
+  let expr = String(formula).replace(/(\d),(\d)/g, '$1.$2').replace(/\^/g, '**');
+
+  const tokens = tokenize(expr);
+  let pos = 0;
+
+  function peek() { return tokens[pos]; }
+  function consume() { return tokens[pos++]; }
+  function expect(val) {
+    const t = consume();
+    if (!t || t.value !== val) throw new Error(`Forventede ${val}`);
+    return t;
+  }
+
+  // Grammatik:
+  //   expr   = term (('+' | '-') term)*
+  //   term   = unary (('*' | '/') unary)*
+  //   unary  = '-' unary | power
+  //   power  = primary ('**' unary)*    (right-assoc; eksponenten kan have unary minus)
+  //   primary= number | ident '(' expr ')' | ident | '(' expr ')'
+  //
+  // Vigtigt: unary minus har lavere precedence end ^, så -x^2 = -(x^2).
+  // Det matcher matematisk konvention og hvad de fleste regneark/CAS gør.
+
+  function parseExpr() {
+    let v = parseTerm();
+    while (peek() && (peek().value === '+' || peek().value === '-')) {
+      const op = consume().value;
+      const r = parseTerm();
+      v = op === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+
+  function parseTerm() {
+    let v = parseUnary();
+    while (peek() && (peek().value === '*' || peek().value === '/')) {
+      const op = consume().value;
+      const r = parseUnary();
+      v = op === '*' ? v * r : v / r;
+    }
+    return v;
+  }
+
+  function parseUnary() {
+    if (peek() && peek().value === '-') {
+      consume();
+      return -parseUnary();
+    }
+    if (peek() && peek().value === '+') {
+      consume();
+      return parseUnary();
+    }
+    return parsePower();
+  }
+
+  function parsePower() {
+    let v = parsePrimary();
+    if (peek() && peek().value === '**') {
+      consume();
+      // Højre side af ^ kan have unary minus (fx 2^-3)
+      const r = parseUnary();
+      v = Math.pow(v, r);
+    }
+    return v;
+  }
+
+  function parsePrimary() {
+    const t = peek();
+    if (!t) throw new Error('Uventet slut');
+    if (t.type === 'num') { consume(); return parseFloat(t.value); }
+    if (t.value === '(') {
+      consume();
+      const v = parseExpr();
+      expect(')');
+      return v;
+    }
+    if (t.type === 'ident') {
+      consume();
+      // Funktion?
+      if (peek() && peek().value === '(') {
+        consume();
+        const arg = parseExpr();
+        expect(')');
+        return applyFunc(t.value, arg);
+      }
+      // Variabel
+      if (ctx[t.value] !== undefined) return ctx[t.value];
+      throw new Error(`Ukendt variabel: ${t.value}`);
+    }
+    throw new Error(`Uventet token: ${t.value}`);
+  }
+
+  function applyFunc(name, arg) {
+    const deg2rad = x => x * Math.PI / 180;
+    const rad2deg = x => x * 180 / Math.PI;
+    switch (name) {
+      case 'sin': return Math.sin(deg2rad(arg));
+      case 'cos': return Math.cos(deg2rad(arg));
+      case 'tan': return Math.tan(deg2rad(arg));
+      case 'asin': return rad2deg(Math.asin(arg));
+      case 'acos': return rad2deg(Math.acos(arg));
+      case 'atan': return rad2deg(Math.atan(arg));
+      case 'ln': return Math.log(arg);
+      case 'log': return Math.log10(arg);
+      case 'exp': return Math.exp(arg);
+      case 'sqrt': return Math.sqrt(arg);
+      case 'abs': return Math.abs(arg);
+      default: throw new Error(`Ukendt funktion: ${name}`);
+    }
+  }
+
+  try {
+    const result = parseExpr();
+    if (pos < tokens.length) {
+      // Uforbrugte tokens — antagelig fejl
+      return NaN;
+    }
+    return result;
+  } catch (e) {
+    return NaN;
+  }
+}
+
+/* =====================================================================
+   BEREGN VÆRDIER FOR EN RÆKKE
+   ===================================================================== */
+
+function rowContext(rowIdx) {
+  const row = state.rows[rowIdx];
+  const ctx = {};
+  // Tilføj konstanter
+  for (const c of state.constants) {
+    if (c.symbol) ctx[c.symbol] = parseNum(c.value);
+  }
+  // Tilføj data-kolonner først
+  for (const col of state.columns) {
+    if (col.type === 'data' && col.symbol) {
+      ctx[col.symbol] = parseNum(row.values[col.symbol]);
+    }
+  }
+  // Tilføj beregnede kolonner — flere passes så afhængigheder kan løses
+  for (let pass = 0; pass < state.columns.length + 2; pass++) {
+    let changed = false;
+    for (const col of state.columns) {
+      if (col.type === 'calc' && col.symbol && !(col.symbol in ctx)) {
+        const v = evalFormulaV2(col.formula, ctx);
+        if (isFinite(v)) {
+          ctx[col.symbol] = v;
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  // For kolonner der stadig ikke er løst, sæt NaN
+  for (const col of state.columns) {
+    if (col.type === 'calc' && col.symbol && !(col.symbol in ctx)) {
+      ctx[col.symbol] = NaN;
+    }
+  }
+  return ctx;
+}
+
+function computedValue(rowIdx, symbol) {
+  const ctx = rowContext(rowIdx);
+  return ctx[symbol];
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+
+function render() {
+  renderConstants();
+  renderTable();
+  renderGraphs();
+  scheduleAutosave();
+}
+
+function renderConstants() {
+  const list = document.getElementById('constants-list');
+  const box = document.getElementById('constants-box');
+  list.innerHTML = '';
+
+  // Når der ingen konstanter er, vis kun en kompakt "+ Tilføj konstant"-knap uden boks
+  if (state.constants.length === 0) {
+    box.classList.add('constants-collapsed');
+    // Skjul overskrift når kollapset
+    const h3 = box.querySelector('h3');
+    if (h3) h3.style.display = 'none';
+    return;
+  }
+
+  // Ellers vis den fulde boks
+  box.classList.remove('constants-collapsed');
+  const h3 = box.querySelector('h3');
+  if (h3) h3.style.display = '';
+
+  state.constants.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'const-item';
+    div.innerHTML = `
+      <div class="const-item-row">
+        <input type="text" class="const-symbol-input" value="${escAttr(c.symbol)}" placeholder="sym" title="Symbol"
+               onchange="updateConstant(${i}, 'symbol', this.value); render();">
+        <input type="text" value="${escAttr(c.value)}" placeholder="værdi" inputmode="decimal" title="Værdi"
+               onchange="updateConstant(${i}, 'value', this.value); render();">
+        <button class="icon" onclick="removeConstant(${i})" title="Fjern">×</button>
+      </div>
+      <div class="const-item-row">
+        <input type="text" class="const-unit-input" value="${escAttr(c.unit)}" placeholder="enhed" title="Enhed"
+               onchange="updateConstant(${i}, 'unit', this.value);">
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function renderTable() {
+  const thead = document.getElementById('table-head');
+  const tbody = document.getElementById('table-body');
+
+  // Header
+  let headerHTML = '<tr>';
+  headerHTML += '<th class="row-num">#</th>';
+  headerHTML += '<th class="action-col" title="Inkludér i regression">✓</th>';
+  state.columns.forEach((col, idx) => {
+    const headerClass = col.type === 'data' ? 'data-header' : 'calc-header';
+    const headerText = formatColHeader(col);
+    // size-attributten styrer input-feltets bredde i tegn — vi giver et lille slæng (+2)
+    // så der altid er plads til markøren og en lille buffer. Min 6 tegn så korte symboler
+    // som "U (V)" stadig har plads til × i hjørnet.
+    const size = Math.max(6, headerText.length + 2);
+    headerHTML += `<th class="${headerClass}">`;
+    headerHTML += `<div class="col-header-wrap">`;
+    headerHTML += `<button class="col-remove-x" onclick="removeColumn(${idx})" title="Fjern kolonne">×</button>`;
+    headerHTML += `<input type="text" class="col-name-input" value="${escAttr(headerText)}"
+                          size="${size}"
+                          oninput="autosizeInput(this)"
+                          onchange="updateColumnHeader(${idx}, this.value); render();"
+                          title="Format: symbol (enhed), fx U(V)">`;
+    if (col.type === 'calc') {
+      headerHTML += `<div class="col-formula" onclick="editColumn(${idx})" title="Klik for at redigere">${escHtml(col.formula || '')} <span class="col-edit-pencil">✎</span></div>`;
+    }
+    headerHTML += `</div>`;
+    headerHTML += '</th>';
+  });
+  headerHTML += '</tr>';
+  thead.innerHTML = headerHTML;
+
+  // Rækker
+  tbody.innerHTML = '';
+  state.rows.forEach((row, rowIdx) => {
+    const tr = document.createElement('tr');
+    if (!row.included) tr.classList.add('excluded');
+
+    let rowHTML = `<td class="row-num">${rowIdx + 1}</td>`;
+    rowHTML += `<td class="action-cell">
+      <input type="checkbox" class="include-checkbox" ${row.included ? 'checked' : ''}
+             onchange="toggleRowIncluded(${rowIdx}); render();" title="Inkludér i regression">
+    </td>`;
+
+    state.columns.forEach((col, colIdx) => {
+      if (col.type === 'data') {
+        rowHTML += `<td class="data-cell">
+          <input type="text" class="cell" inputmode="decimal"
+                 value="${escAttr(row.values[col.symbol] || '')}"
+                 oninput="updateCellLive(${rowIdx}, '${escAttr(col.symbol)}', this.value)"
+                 onkeydown="cellKeyDown(event, ${rowIdx}, ${colIdx})"
+                 onpaste="cellPaste(event, ${rowIdx}, ${colIdx})">
+        </td>`;
+      } else {
+        const v = computedValue(rowIdx, col.symbol);
+        rowHTML += `<td class="calc-cell">${formatNum(v)}</td>`;
+      }
+    });
+    rowHTML += `<td class="action-cell"><button class="icon" onclick="removeRow(${rowIdx})" title="Fjern række">×</button></td>`;
+    tr.innerHTML = rowHTML;
+    tbody.appendChild(tr);
+  });
+
+  if (state.rows.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="${state.columns.length + 3}" style="padding: 20px; color: var(--muted); font-style: italic;">Ingen rækker. Klik "+ Tilføj række" for at indtaste data.</td>`;
+    tbody.appendChild(tr);
+  }
+
+  // Tilføj en ekstra header-celle til "fjern række"-kolonnen
+  const lastHeaderRow = thead.querySelector('tr');
+  const extraTh = document.createElement('th');
+  extraTh.className = 'action-col';
+  extraTh.textContent = '';
+  lastHeaderRow.appendChild(extraTh);
+}
+
+function formatColHeader(col) {
+  if (!col.symbol) return '(navngiv)';
+  if (col.unit) return `${col.symbol} (${col.unit})`;
+  return col.symbol;
+}
+
+function parseColHeader(s) {
+  // Parse "U (V)" eller "U(V)" til { symbol: 'U', unit: 'V' }
+  s = s.trim();
+  const m = s.match(/^([^\s(]+)\s*\(([^)]*)\)\s*$/);
+  if (m) return { symbol: m[1].trim(), unit: m[2].trim() };
+  return { symbol: s, unit: '' };
+}
+
+function escAttr(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function autosizeInput(inp) {
+  // Tilpas size-attributten så feltet vokser med indholdet, mens man skriver
+  const len = (inp.value || '').length;
+  inp.size = Math.max(6, len + 2);
+}
+
+/* =====================================================================
+   SYMBOL-PALETTE (græske bogstaver og specialtegn)
+   ===================================================================== */
+
+const SYMBOL_GROUPS = {
+  units: ['Ω', '°', '·', '±', '⁻¹', '⁻²', '²', '³', 'µ', 'Å', 'π', '∞', '√', 'Δ', '∂', '∑'],
+  lower: ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'µ', 'ν', 'ξ', 'ο', 'π',
+          'ρ', 'σ', 'τ', 'υ', 'φ', 'χ', 'ψ', 'ω'],
+  upper: ['Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π',
+          'Ρ', 'Σ', 'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω']
+};
+
+// Sidst-fokuserede tekstfelt — så vi ved hvor tegnet skal indsættes
+let lastFocusedInput = null;
+
+function trackInputFocus(ev) {
+  const t = ev.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && t.type !== 'checkbox') {
+    // Husk ikke selve palette-knapperne
+    if (!t.closest('.symbol-palette')) {
+      lastFocusedInput = t;
+    }
+  }
+}
+
+function buildSymbolPalette() {
+  for (const [groupId, symbols] of Object.entries(SYMBOL_GROUPS)) {
+    const grid = document.getElementById('symbol-grid-' + groupId);
+    if (!grid) continue;
+    grid.innerHTML = symbols.map(s =>
+      `<button class="symbol-btn" onmousedown="event.preventDefault()" onclick="insertSymbol('${s}')">${s}</button>`
+    ).join('');
+  }
+}
+
+function toggleSymbolPalette() {
+  const palette = document.getElementById('symbol-palette');
+  palette.classList.toggle('visible');
+}
+
+function insertSymbol(sym) {
+  if (!lastFocusedInput) {
+    alert('Klik først i det felt hvor du vil indsætte tegnet.');
+    return;
+  }
+  const inp = lastFocusedInput;
+  const start = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+  const end = inp.selectionEnd != null ? inp.selectionEnd : inp.value.length;
+  const before = inp.value.slice(0, start);
+  const after = inp.value.slice(end);
+  inp.value = before + sym + after;
+  // Sæt markør efter det indsatte tegn
+  const newPos = start + sym.length;
+  // Refokuser og placér markør (giv DOM'en et øjeblik)
+  inp.focus();
+  inp.setSelectionRange(newPos, newPos);
+  // Trig input-event så bundne handlere (oninput, autosize osv.) fyrer
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/* =====================================================================
+   CELLE-INTERAKTION
+   ===================================================================== */
+
+function cellKeyDown(ev, rowIdx, colIdx) {
+  const moveTo = (newRow, newCol) => {
+    ev.preventDefault();
+    // Hvis newRow er ud over slutningen, lav en ny række (uden at addRow stjæler fokus)
+    if (newRow >= state.rows.length) {
+      addRow(false);
+    }
+    if (newRow < 0) return;
+    if (newCol < 0 || newCol >= state.columns.length) return;
+    // Skip beregnede kolonner — find næste/forrige data-kolonne
+    let targetCol = newCol;
+    const dir = newCol > colIdx ? 1 : (newCol < colIdx ? -1 : 0);
+    if (dir !== 0) {
+      while (targetCol >= 0 && targetCol < state.columns.length && state.columns[targetCol].type !== 'data') {
+        targetCol += dir;
+      }
+      if (targetCol < 0 || targetCol >= state.columns.length) return;
+    }
+    setTimeout(() => {
+      focusCell(newRow, targetCol);
+    }, 0);
+  };
+
+  if (ev.key === 'Enter' || ev.key === 'ArrowDown') {
+    moveTo(rowIdx + 1, colIdx);
+  } else if (ev.key === 'ArrowUp') {
+    moveTo(rowIdx - 1, colIdx);
+  } else if (ev.key === 'ArrowRight') {
+    // Kun naviger ved arrow-right hvis markøren er for enden af feltet
+    const target = ev.target;
+    if (target.selectionStart === target.value.length) {
+      moveTo(rowIdx, colIdx + 1);
+    }
+  } else if (ev.key === 'ArrowLeft') {
+    // Kun naviger ved arrow-left hvis markøren er i starten af feltet
+    const target = ev.target;
+    if (target.selectionStart === 0 && target.selectionEnd === 0) {
+      moveTo(rowIdx, colIdx - 1);
+    }
+  }
+  // Tab håndteres af browseren selv
+}
+
+function focusCell(rowIdx, colIdx) {
+  const tbody = document.getElementById('table-body');
+  const tr = tbody.children[rowIdx];
+  if (!tr) return;
+  // tr.children[0] = #, [1] = ✓, [2..] = kolonner
+  const cellNode = tr.children[2 + colIdx];
+  if (!cellNode) return;
+  const inp = cellNode.querySelector('input');
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+/* Paste fra Excel/Sheets — kan både dække én celle, én kolonne eller en hel tabel.
+   Excel kopierer typisk med tab som kolonneseparator og newline som rækkeseparator. */
+function cellPaste(ev, rowIdx, colIdx) {
+  const clip = (ev.clipboardData || window.clipboardData);
+  if (!clip) return;
+  const text = clip.getData('text');
+  if (!text) return;
+
+  // Detektér om der er flere celler (newline eller tab)
+  const hasNewline = /\r?\n/.test(text.trim());
+  const hasTab = text.includes('\t');
+
+  // Hvis det bare er én værdi, lad standard paste køre
+  if (!hasNewline && !hasTab) return;
+
+  ev.preventDefault();
+
+  // Parse pasted data som matrix
+  const lines = text.split(/\r?\n/).filter(l => l.length > 0);
+  const matrix = lines.map(line => line.split('\t'));
+
+  // Find målkolonner — de data-kolonner der starter fra colIdx
+  const targetCols = [];
+  for (let c = colIdx; c < state.columns.length && targetCols.length < (matrix[0] || []).length; c++) {
+    if (state.columns[c].type === 'data') {
+      targetCols.push(c);
+    }
+  }
+
+  // Sørg for at der er nok rækker — tilføj manglende
+  const neededRows = rowIdx + matrix.length;
+  while (state.rows.length < neededRows) {
+    state.rows.push({ included: true, values: {} });
+  }
+
+  // Indsæt værdier
+  matrix.forEach((rowData, r) => {
+    rowData.forEach((val, c) => {
+      const targetColIdx = targetCols[c];
+      if (targetColIdx == null) return;
+      const sym = state.columns[targetColIdx].symbol;
+      state.rows[rowIdx + r].values[sym] = val.trim();
+    });
+  });
+
+  render();
+  // Fokuser sidste indsatte celle
+  setTimeout(() => {
+    const lastRow = rowIdx + matrix.length - 1;
+    const lastCol = targetCols[matrix[0].length - 1] != null ? targetCols[matrix[0].length - 1] : colIdx;
+    focusCell(lastRow, lastCol);
+  }, 10);
+}
+
+function updateCell(rowIdx, sym, value) {
+  state.rows[rowIdx].values[sym] = value;
+}
+
+/* updateCellLive bruges ved oninput — gemmer værdien og opdaterer
+   beregnede kolonner + grafer, men rører IKKE selve data-input-felterne,
+   så markøren og fokus bevares mens man skriver eller bruger piletaster. */
+function updateCellLive(rowIdx, sym, value) {
+  state.rows[rowIdx].values[sym] = value;
+  // Opdater kun beregnede celler i denne række (live)
+  const tbody = document.getElementById('table-body');
+  const tr = tbody.children[rowIdx];
+  if (tr) {
+    state.columns.forEach((col, colIdx) => {
+      if (col.type === 'calc') {
+        const cellNode = tr.children[2 + colIdx];
+        if (cellNode) {
+          const v = computedValue(rowIdx, col.symbol);
+          cellNode.textContent = formatNum(v);
+        }
+      }
+    });
+  }
+  // Opdater grafer (let — kun de der rører ved denne kolonne, men nemmest:
+  // genbyg alle grafer da vi alligevel skal genberegne)
+  state.graphs.forEach(g => buildGraph(g));
+  scheduleAutosave();
+}
+
+function toggleRowIncluded(rowIdx) {
+  state.rows[rowIdx].included = !state.rows[rowIdx].included;
+}
+
+function updateColumnHeader(idx, value) {
+  const parsed = parseColHeader(value);
+  const oldSymbol = state.columns[idx].symbol;
+  state.columns[idx].symbol = parsed.symbol;
+  state.columns[idx].unit = parsed.unit;
+  // Hvis dette er en datakolonne og symbolet har ændret sig, så migrér værdier
+  if (state.columns[idx].type === 'data' && oldSymbol && oldSymbol !== parsed.symbol) {
+    for (const row of state.rows) {
+      if (oldSymbol in row.values) {
+        row.values[parsed.symbol] = row.values[oldSymbol];
+        delete row.values[oldSymbol];
+      }
+    }
+  }
+}
+
+function updateConstant(idx, key, value) {
+  state.constants[idx][key] = value;
+}
+
+function addConstant() {
+  state.constants.push({ symbol: '', value: '', unit: '' });
+  render();
+}
+
+function removeConstant(idx) {
+  state.constants.splice(idx, 1);
+  render();
+}
+
+function addRow(autoFocus = true) {
+  const newRow = { included: true, values: {} };
+  state.rows.push(newRow);
+  render();
+  if (!autoFocus) return;
+  // Fokuser første datakolonne i den nye række
+  setTimeout(() => {
+    const tbody = document.getElementById('table-body');
+    const tr = tbody.lastElementChild;
+    if (!tr) return;
+    const inp = tr.querySelector('td.data-cell input');
+    if (inp) inp.focus();
+  }, 10);
+}
+
+function removeRow(idx) {
+  state.rows.splice(idx, 1);
+  render();
+}
+
+function addDataColumn() {
+  // Find et unikt forslag til symbol
+  let symbol = 'x';
+  const used = new Set(state.columns.map(c => c.symbol));
+  if (used.has('x')) {
+    if (!used.has('y')) symbol = 'y';
+    else {
+      let i = 1;
+      while (used.has('v' + i)) i++;
+      symbol = 'v' + i;
+    }
+  }
+  state.columns.push({ type: 'data', symbol, unit: '' });
+  render();
+}
+
+function removeColumn(idx) {
+  if (!confirm('Fjern kolonnen "' + state.columns[idx].symbol + '"? Data i kolonnen mistes.')) return;
+  const symbol = state.columns[idx].symbol;
+  state.columns.splice(idx, 1);
+  // Ryd data fra rækker
+  for (const row of state.rows) delete row.values[symbol];
+  render();
+}
+
+/* =====================================================================
+   FORMEL-EDITOR
+   ===================================================================== */
+
+let editingColumnIdx = null;
+
+function openFormulaEditor() {
+  editingColumnIdx = null;
+  document.getElementById('formula-editor-title').textContent = 'Ny beregnet kolonne';
+  document.getElementById('formula-symbol').value = '';
+  document.getElementById('formula-unit').value = '';
+  document.getElementById('formula-expr').value = '';
+  document.getElementById('formula-editor').style.display = 'block';
+  document.getElementById('formula-symbol').focus();
+}
+
+function editColumn(idx) {
+  const col = state.columns[idx];
+  if (col.type !== 'calc') return;
+  editingColumnIdx = idx;
+  document.getElementById('formula-editor-title').textContent = 'Redigér beregnet kolonne';
+  document.getElementById('formula-symbol').value = col.symbol;
+  document.getElementById('formula-unit').value = col.unit;
+  document.getElementById('formula-expr').value = col.formula;
+  document.getElementById('formula-editor').style.display = 'block';
+  document.getElementById('formula-symbol').focus();
+}
+
+function closeFormulaEditor() {
+  document.getElementById('formula-editor').style.display = 'none';
+  editingColumnIdx = null;
+}
+
+function saveFormulaColumn() {
+  const symbol = document.getElementById('formula-symbol').value.trim();
+  const unit = document.getElementById('formula-unit').value.trim();
+  const formula = document.getElementById('formula-expr').value.trim();
+  if (!symbol) { alert('Angiv et symbol.'); return; }
+  if (!formula) { alert('Angiv en formel.'); return; }
+
+  if (editingColumnIdx != null) {
+    state.columns[editingColumnIdx] = { type: 'calc', symbol, unit, formula };
+  } else {
+    state.columns.push({ type: 'calc', symbol, unit, formula });
+  }
+  closeFormulaEditor();
+  render();
+}
+
+/* =====================================================================
+   REGRESSIONER
+   ===================================================================== */
+
+// Lineær regression (mindste kvadrater): y = a*x + b
+function regLinear(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sx += xs[i]; sy += ys[i]; sxx += xs[i]*xs[i]; sxy += xs[i]*ys[i];
+  }
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return null;
+  const a = (n * sxy - sx * sy) / denom;
+  const b = (sy - a * sx) / n;
+  const predict = x => a * x + b;
+  return { params: { a, b }, predict };
+}
+
+// Proportionalitet (gennem origo): y = a*x
+function regProp(xs, ys) {
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < xs.length; i++) { sxy += xs[i]*ys[i]; sxx += xs[i]*xs[i]; }
+  if (sxx === 0) return null;
+  const a = sxy / sxx;
+  return { params: { a }, predict: x => a * x };
+}
+
+// Potens: y = a * x^b — linearisér ved log
+function regPower(xs, ys) {
+  const lx = [], ly = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (xs[i] > 0 && ys[i] > 0) { lx.push(Math.log(xs[i])); ly.push(Math.log(ys[i])); }
+  }
+  if (lx.length < 2) return null;
+  const lin = regLinear(lx, ly);
+  if (!lin) return null;
+  const a = Math.exp(lin.params.b);
+  const b = lin.params.a;
+  return { params: { a, b }, predict: x => a * Math.pow(x, b) };
+}
+
+// Eksponential: y = a * e^(b*x) — linearisér ved log(y)
+function regExp(xs, ys) {
+  const lx = [], ly = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (ys[i] > 0) { lx.push(xs[i]); ly.push(Math.log(ys[i])); }
+  }
+  if (lx.length < 2) return null;
+  const lin = regLinear(lx, ly);
+  if (!lin) return null;
+  const a = Math.exp(lin.params.b);
+  const b = lin.params.a;
+  return { params: { a, b }, predict: x => a * Math.exp(b * x) };
+}
+
+// Invers: y = a/x — linearisér som y = a * (1/x)
+function regInv(xs, ys) {
+  const tx = [], ty = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (xs[i] !== 0) { tx.push(1/xs[i]); ty.push(ys[i]); }
+  }
+  if (tx.length < 2) return null;
+  const p = regProp(tx, ty);
+  if (!p) return null;
+  const a = p.params.a;
+  return { params: { a }, predict: x => a / x };
+}
+
+// y = a/x^2
+function regInv2(xs, ys) {
+  const tx = [], ty = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (xs[i] !== 0) { tx.push(1/(xs[i]*xs[i])); ty.push(ys[i]); }
+  }
+  if (tx.length < 2) return null;
+  const p = regProp(tx, ty);
+  if (!p) return null;
+  const a = p.params.a;
+  return { params: { a }, predict: x => a / (x*x) };
+}
+
+// Kvadratrod: y = a * sqrt(x)
+function regSqrt(xs, ys) {
+  const tx = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (xs[i] >= 0) tx.push(Math.sqrt(xs[i]));
+    else return null;
+  }
+  const p = regProp(tx, ys);
+  if (!p) return null;
+  const a = p.params.a;
+  return { params: { a }, predict: x => a * Math.sqrt(x) };
+}
+
+// Andengrad: y = a*x^2 + b*x + c (lineær i parametre, lukket form)
+function regQuad(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  // Normallikninger for [a, b, c] minimerer sum (y - (a*x^2 + b*x + c))^2
+  // Matrix: [[Σx^4, Σx^3, Σx^2], [Σx^3, Σx^2, Σx], [Σx^2, Σx, n]] * [a,b,c]^T = [Σx²y, Σxy, Σy]
+  let sx=0, sxx=0, sxxx=0, sxxxx=0;
+  let sy=0, sxy=0, sxxy=0;
+  for (let i = 0; i < n; i++) {
+    const x = xs[i], y = ys[i];
+    const x2 = x*x;
+    sx += x; sxx += x2; sxxx += x2*x; sxxxx += x2*x2;
+    sy += y; sxy += x*y; sxxy += x2*y;
+  }
+  const M = [
+    [sxxxx, sxxx, sxx],
+    [sxxx,  sxx,  sx],
+    [sxx,   sx,   n]
+  ];
+  const v = [sxxy, sxy, sy];
+  const sol = solve3x3(M, v);
+  if (!sol) return null;
+  const [a, b, c] = sol;
+  return {
+    params: { a, b, c },
+    predict: x => a*x*x + b*x + c
+  };
+}
+
+// Løs 3x3 lineært system (Cramers regel)
+function solve3x3(M, v) {
+  const det = (
+      M[0][0] * (M[1][1]*M[2][2] - M[1][2]*M[2][1])
+    - M[0][1] * (M[1][0]*M[2][2] - M[1][2]*M[2][0])
+    + M[0][2] * (M[1][0]*M[2][1] - M[1][1]*M[2][0])
+  );
+  if (Math.abs(det) < 1e-15) return null;
+  function detReplace(col) {
+    const N = M.map(r => r.slice());
+    for (let i = 0; i < 3; i++) N[i][col] = v[i];
+    return (
+        N[0][0] * (N[1][1]*N[2][2] - N[1][2]*N[2][1])
+      - N[0][1] * (N[1][0]*N[2][2] - N[1][2]*N[2][0])
+      + N[0][2] * (N[1][0]*N[2][1] - N[1][1]*N[2][0])
+    );
+  }
+  return [detReplace(0)/det, detReplace(1)/det, detReplace(2)/det];
+}
+
+// Forskudt eksponential: y = a*e^(b*x) + c — ikke-lineær 3-parameter fit
+// Strategi: grid-search på c + lineariseret fit af (a, b) via log(y - c), derefter forfining
+function regExpOff(xs, ys) {
+  if (xs.length < 4) return null;
+
+  function fitGivenC(c) {
+    // Med c fast: y - c = a*e^(b*x) → log(y - c) = log(a) + b*x (kun for y > c)
+    const tx = [], ty = [];
+    for (let i = 0; i < xs.length; i++) {
+      const yd = ys[i] - c;
+      if (yd > 1e-12) { tx.push(xs[i]); ty.push(Math.log(yd)); }
+    }
+    if (tx.length < 2) return null;
+    const lin = regLinear(tx, ty);
+    if (!lin) return null;
+    const a = Math.exp(lin.params.b);
+    const b = lin.params.a;
+    let rss = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const pred = a * Math.exp(b * xs[i]) + c;
+      rss += (ys[i] - pred) ** 2;
+    }
+    return { a, b, c, rss };
+  }
+
+  // Grovsøgning over c: typisk omkring min(y), under min(y), eller mellem min og max
+  const yMin = Math.min(...ys);
+  const yMax = Math.max(...ys);
+  const yRange = yMax - yMin;
+
+  let best = null;
+  // Prøv c-værdier fra langt under yMin op til lige under yMin (asymptote)
+  const cStart = yMin - yRange * 2;
+  const cEnd = yMin - yRange * 0.001;
+  const cSteps = 60;
+  for (let i = 0; i <= cSteps; i++) {
+    const c = cStart + (cEnd - cStart) * i / cSteps;
+    const f = fitGivenC(c);
+    if (f && (best === null || f.rss < best.rss)) best = f;
+  }
+  // Også prøv c over yMax (faldende eksponential mod asymptote oppefra)
+  for (let i = 0; i <= cSteps; i++) {
+    const c = yMax + yRange * 0.001 + (yRange * 2) * i / cSteps;
+    // Her vil log(y-c) være udefineret. Vi prøver alternativt med a < 0:
+    // Hvis ys[i] < c for alle, så er a*e^(b*x) negativ, dvs a < 0 og log(c - y) = log(-a) + b*x
+    const tx = [], ty = [];
+    for (let j = 0; j < xs.length; j++) {
+      const yd = c - ys[j];
+      if (yd > 1e-12) { tx.push(xs[j]); ty.push(Math.log(yd)); }
+    }
+    if (tx.length < 2) continue;
+    const lin = regLinear(tx, ty);
+    if (!lin) continue;
+    const a = -Math.exp(lin.params.b);
+    const b = lin.params.a;
+    let rss = 0;
+    for (let j = 0; j < xs.length; j++) {
+      rss += (ys[j] - (a * Math.exp(b * xs[j]) + c)) ** 2;
+    }
+    if (best === null || rss < best.rss) best = { a, b, c, rss };
+  }
+
+  if (!best) return null;
+
+  // Forfine via lokal søgning på alle tre parametre (Nelder-Mead-light)
+  best = refineFit3(xs, ys, best.a, best.b, best.c, (x, p) => p[0] * Math.exp(p[1] * x) + p[2]);
+  if (!best) return null;
+
+  return {
+    params: { a: best.params[0], b: best.params[1], c: best.params[2] },
+    predict: x => best.params[0] * Math.exp(best.params[1] * x) + best.params[2]
+  };
+}
+
+// Generel ikke-lineær fit-forfining med koordinat-descent på 3 parametre
+function refineFit3(xs, ys, a0, b0, c0, modelFn) {
+  const params = [a0, b0, c0];
+  function rss(p) {
+    let s = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const pred = modelFn(xs[i], p);
+      if (!isFinite(pred)) return Infinity;
+      s += (ys[i] - pred) ** 2;
+    }
+    return s;
+  }
+  let curRss = rss(params);
+  if (!isFinite(curRss)) return null;
+
+  // For hver parameter, gør lokalt golden-section-lignende skridt
+  let steps = params.map(p => Math.max(Math.abs(p) * 0.1, 0.01));
+  for (let iter = 0; iter < 200; iter++) {
+    let improved = false;
+    for (let k = 0; k < 3; k++) {
+      const orig = params[k];
+      for (const dir of [-1, 1]) {
+        params[k] = orig + dir * steps[k];
+        const r = rss(params);
+        if (r < curRss) {
+          curRss = r;
+          improved = true;
+          break;
+        } else {
+          params[k] = orig;
+        }
+      }
+      if (!improved) steps[k] *= 0.5;
+    }
+    if (steps.every(s => s < 1e-10)) break;
+  }
+  return { params, rss: curRss };
+}
+
+// Brugerdefineret regression — formel med navngivne parametre og startgæt
+// graf.customExpr = "a*exp(-((x-b)/c)^2)", graf.customParams = {a: 1, b: 0, c: 1}
+function regCustom(xs, ys, expr, paramStartValues) {
+  const paramNames = Object.keys(paramStartValues);
+  const startValues = paramNames.map(n => parseNum(paramStartValues[n]));
+  if (paramNames.length === 0) return null;
+  if (startValues.some(v => !isFinite(v))) return null;
+
+  function model(x, paramArray) {
+    const ctx = { x };
+    for (let i = 0; i < paramNames.length; i++) ctx[paramNames[i]] = paramArray[i];
+    return evalFormulaV2(expr, ctx);
+  }
+
+  function rss(paramArray) {
+    let s = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const pred = model(xs[i], paramArray);
+      if (!isFinite(pred)) return Infinity;
+      s += (ys[i] - pred) ** 2;
+    }
+    return s;
+  }
+
+  // Brug Nelder-Mead simplex — meget mere robust end koordinat-descent for
+  // ikke-lineære problemer som Gaussian, hvor parametre er korrelerede.
+  const result = nelderMead(rss, startValues, { maxIter: 2000, tol: 1e-12 });
+  if (!result || !isFinite(result.rss)) return null;
+
+  const paramsObj = {};
+  paramNames.forEach((n, i) => paramsObj[n] = result.params[i]);
+  return {
+    params: paramsObj,
+    paramNames,
+    predict: x => model(x, result.params)
+  };
+}
+
+// Nelder-Mead simplex optimization
+function nelderMead(f, x0, opts) {
+  opts = opts || {};
+  const maxIter = opts.maxIter || 1000;
+  const tol = opts.tol || 1e-10;
+  const n = x0.length;
+
+  // Initial simplex: x0 plus n perturbed points
+  const simplex = [x0.slice()];
+  for (let i = 0; i < n; i++) {
+    const p = x0.slice();
+    p[i] = x0[i] !== 0 ? x0[i] * 1.05 : 0.00025;
+    simplex.push(p);
+  }
+  let values = simplex.map(p => f(p));
+
+  // Standard NM coefficients
+  const ALPHA = 1.0;   // reflection
+  const GAMMA = 2.0;   // expansion
+  const RHO = 0.5;     // contraction
+  const SIGMA = 0.5;   // shrink
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    // Sort by value
+    const order = [...Array(n+1).keys()].sort((a, b) => values[a] - values[b]);
+    const sorted = order.map(i => simplex[i]);
+    const sortedVals = order.map(i => values[i]);
+    for (let i = 0; i <= n; i++) { simplex[i] = sorted[i]; values[i] = sortedVals[i]; }
+
+    // Check convergence (range of values)
+    if (Math.abs(values[n] - values[0]) < tol) break;
+
+    // Centroid of all but worst
+    const centroid = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) centroid[j] += simplex[i][j];
+    }
+    for (let j = 0; j < n; j++) centroid[j] /= n;
+
+    // Reflection
+    const xr = centroid.map((c, j) => c + ALPHA * (c - simplex[n][j]));
+    const fr = f(xr);
+    if (fr < values[n-1] && fr >= values[0]) {
+      simplex[n] = xr; values[n] = fr;
+      continue;
+    }
+
+    // Expansion
+    if (fr < values[0]) {
+      const xe = centroid.map((c, j) => c + GAMMA * (xr[j] - c));
+      const fe = f(xe);
+      if (fe < fr) { simplex[n] = xe; values[n] = fe; }
+      else { simplex[n] = xr; values[n] = fr; }
+      continue;
+    }
+
+    // Contraction
+    const xc = centroid.map((c, j) => c + RHO * (simplex[n][j] - c));
+    const fc = f(xc);
+    if (fc < values[n]) {
+      simplex[n] = xc; values[n] = fc;
+      continue;
+    }
+
+    // Shrink
+    for (let i = 1; i <= n; i++) {
+      simplex[i] = simplex[i].map((v, j) => simplex[0][j] + SIGMA * (v - simplex[0][j]));
+      values[i] = f(simplex[i]);
+    }
+  }
+
+  // Return best
+  let bestIdx = 0;
+  for (let i = 1; i <= n; i++) if (values[i] < values[bestIdx]) bestIdx = i;
+  return { params: simplex[bestIdx], rss: values[bestIdx] };
+}
+
+// Generel ikke-lineær fit-forfining med koordinat-descent på 3 parametre
+function refineFit3(xs, ys, a0, b0, c0, modelFn) {
+  // Brug Nelder-Mead i stedet (mere robust)
+  function rss(p) {
+    let s = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const pred = modelFn(xs[i], p);
+      if (!isFinite(pred)) return Infinity;
+      s += (ys[i] - pred) ** 2;
+    }
+    return s;
+  }
+  const result = nelderMead(rss, [a0, b0, c0], { maxIter: 1000, tol: 1e-12 });
+  if (!result || !isFinite(result.rss)) return null;
+  return { params: result.params, rss: result.rss };
+}
+
+// y = a/(x+b) — ikke-lineær, brug Levenberg-Marquardt-lignende iteration.
+// Simplere: brug grid-search på b + lineær fit af a, derefter forfin.
+function regInvOff(xs, ys) {
+  if (xs.length < 3) return null;
+
+  function fitGivenB(b) {
+    const tx = [], ty = [];
+    for (let i = 0; i < xs.length; i++) {
+      const denom = xs[i] + b;
+      if (denom === 0) return null;
+      tx.push(1/denom); ty.push(ys[i]);
+    }
+    const p = regProp(tx, ty);
+    if (!p) return null;
+    const a = p.params.a;
+    let rss = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const pred = a / (xs[i] + b);
+      rss += (ys[i] - pred) ** 2;
+    }
+    return { a, rss };
+  }
+
+  // Initial coarse search
+  const xMin = Math.min(...xs);
+  let bestB = 0, bestRss = Infinity, bestA = NaN;
+  for (let b = -xMin * 0.9; b <= Math.abs(xMin) * 5 + 10; b += Math.max(0.01, Math.abs(xMin) * 0.05)) {
+    const f = fitGivenB(b);
+    if (f && f.rss < bestRss) { bestRss = f.rss; bestB = b; bestA = f.a; }
+  }
+
+  // Forfining (golden section / lokal search)
+  let step = Math.abs(bestB) * 0.1 + 0.1;
+  for (let iter = 0; iter < 50; iter++) {
+    let improved = false;
+    for (const db of [-step, step]) {
+      const f = fitGivenB(bestB + db);
+      if (f && f.rss < bestRss) {
+        bestRss = f.rss; bestB += db; bestA = f.a; improved = true;
+      }
+    }
+    if (!improved) step *= 0.5;
+    if (step < 1e-8) break;
+  }
+
+  if (!isFinite(bestA)) return null;
+  return {
+    params: { a: bestA, b: bestB },
+    predict: x => bestA / (x + bestB)
+  };
+}
+
+// y = a/(b+x)^2
+function regInv2Off(xs, ys) {
+  if (xs.length < 3) return null;
+
+  function fitGivenB(b) {
+    const tx = [], ty = [];
+    for (let i = 0; i < xs.length; i++) {
+      const denom = xs[i] + b;
+      if (denom === 0) return null;
+      tx.push(1/(denom*denom)); ty.push(ys[i]);
+    }
+    const p = regProp(tx, ty);
+    if (!p) return null;
+    const a = p.params.a;
+    let rss = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const d = xs[i] + b;
+      if (d === 0) return null;
+      const pred = a / (d*d);
+      rss += (ys[i] - pred) ** 2;
+    }
+    return { a, rss };
+  }
+
+  const xMin = Math.min(...xs);
+  let bestB = 0, bestRss = Infinity, bestA = NaN;
+  for (let b = -xMin * 0.9; b <= Math.abs(xMin) * 5 + 10; b += Math.max(0.01, Math.abs(xMin) * 0.05)) {
+    const f = fitGivenB(b);
+    if (f && f.rss < bestRss) { bestRss = f.rss; bestB = b; bestA = f.a; }
+  }
+
+  let step = Math.abs(bestB) * 0.1 + 0.1;
+  for (let iter = 0; iter < 80; iter++) {
+    let improved = false;
+    for (const db of [-step, step]) {
+      const f = fitGivenB(bestB + db);
+      if (f && f.rss < bestRss) {
+        bestRss = f.rss; bestB += db; bestA = f.a; improved = true;
+      }
+    }
+    if (!improved) step *= 0.5;
+    if (step < 1e-9) break;
+  }
+
+  if (!isFinite(bestA)) return null;
+  return {
+    params: { a: bestA, b: bestB },
+    predict: x => bestA / ((x + bestB)*(x + bestB))
+  };
+}
+
+function runRegression(type, xs, ys, graphState) {
+  switch (type) {
+    case 'prop':     return regProp(xs, ys);
+    case 'linear':   return regLinear(xs, ys);
+    case 'quad':     return regQuad(xs, ys);
+    case 'power':    return regPower(xs, ys);
+    case 'exp':      return regExp(xs, ys);
+    case 'exp_off':  return regExpOff(xs, ys);
+    case 'inv':      return regInv(xs, ys);
+    case 'inv_off':  return regInvOff(xs, ys);
+    case 'inv2':     return regInv2(xs, ys);
+    case 'inv2_off': return regInv2Off(xs, ys);
+    case 'sqrt':     return regSqrt(xs, ys);
+    case 'custom':
+      if (!graphState || !graphState.customExpr || !graphState.customParams) return null;
+      return regCustom(xs, ys, graphState.customExpr, graphState.customParams);
+  }
+  return null;
+}
+
+function rmse(predict, xs, ys) {
+  let s = 0; let n = 0;
+  for (let i = 0; i < xs.length; i++) {
+    const p = predict(xs[i]);
+    if (isFinite(p)) { s += (ys[i] - p) ** 2; n++; }
+  }
+  return n > 0 ? Math.sqrt(s / n) : NaN;
+}
+
+function formatRegression(type, params, graphState) {
+  const a = params.a != null ? formatNum(params.a, 4) : null;
+  const b = params.b != null ? formatNum(params.b, 4) : null;
+  const c = params.c != null ? formatNum(params.c, 4) : null;
+  const signNum = (v) => (v >= 0 ? '+ ' : '− ') + formatNum(Math.abs(v), 4);
+  switch (type) {
+    case 'prop':     return `y = ${a}·x`;
+    case 'linear':   return `y = ${a}·x ${signNum(params.b)}`;
+    case 'quad':     return `y = ${a}·x² ${signNum(params.b)}·x ${signNum(params.c)}`;
+    case 'power':    return `y = ${a}·x<sup>${b}</sup>`;
+    case 'exp':      return `y = ${a}·e<sup>${b}·x</sup>`;
+    case 'exp_off':  return `y = ${a}·e<sup>${b}·x</sup> ${signNum(params.c)}`;
+    case 'inv':      return `y = ${a}/x`;
+    case 'inv_off':  return `y = ${a}/(x ${signNum(params.b)})`;
+    case 'inv2':     return `y = ${a}/x²`;
+    case 'inv2_off': return `y = ${a}/(x ${signNum(params.b)})²`;
+    case 'sqrt':     return `y = ${a}·√x`;
+    case 'custom':
+      if (!graphState) return '';
+      // Erstat hver parameter med dens fittede værdi i udtrykket (kun til visning)
+      let expr = graphState.customExpr || '';
+      // Vi viser bare den oprindelige formel med parameternavne — brugeren ser parametrene under
+      return `y = ${escHtml(expr)}`;
+  }
+  return '';
+}
+
+/* =====================================================================
+   GRAFER
+   ===================================================================== */
+
+function addGraph() {
+  // Find første to numeriske kolonner som default
+  const symbols = state.columns.map(c => c.symbol).filter(Boolean);
+  const xSym = symbols[0] || '';
+  const ySym = symbols[1] || symbols[0] || '';
+  state.graphs.push({
+    id: state._graphIdCounter++,
+    xSym,
+    ySym,
+    regType: 'none'
+  });
+  render();
+}
+
+function removeGraph(id) {
+  state.graphs = state.graphs.filter(g => g.id !== id);
+  render();
+}
+
+function updateGraph(id, key, value) {
+  const g = state.graphs.find(g => g.id === id);
+  if (g) g[key] = value;
+  render();
+}
+
+/* Opdater en akse-grænse fra et input-felt. Tom streng eller ugyldigt tal = null (auto). */
+function updateAxisRange(id, key, value) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    g[key] = null;
+  } else {
+    const num = parseNum(trimmed);
+    g[key] = isFinite(num) ? num : null;
+  }
+  render();
+}
+
+/* Nulstil alle fire akse-grænser til auto. */
+function resetAxisRange(id) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  g.xMin = null;
+  g.xMax = null;
+  g.yMin = null;
+  g.yMax = null;
+  render();
+}
+
+function onRegTypeChange(id, value) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  g.regType = value;
+  // Hvis brugerdefineret er valgt og ingen formel er sat endnu, lav et default
+  if (value === 'custom' && (!g.customExpr || !g.customParams)) {
+    g.customExpr = 'a*exp(-((x-b)/c)^2)';
+    g.customParams = { a: '1', b: '0', c: '1' };
+  }
+  render();
+}
+
+function renderCustomRegEditor(g) {
+  const params = g.customParams || {};
+  const paramFields = Object.keys(params).map(p => `
+    <div class="custom-param">
+      <span class="custom-param-name">${escHtml(p)} =</span>
+      <input type="text" inputmode="decimal" value="${escAttr(params[p])}"
+             onchange="updateCustomParam(${g.id}, '${escAttr(p)}', this.value)">
+      <button class="icon small" onclick="removeCustomParam(${g.id}, '${escAttr(p)}')" title="Fjern parameter">×</button>
+    </div>
+  `).join('');
+
+  return `
+    <div class="custom-reg-editor">
+      <h4>Brugerdefineret regression</h4>
+      <div class="custom-reg-fields">
+        <div class="field">
+          <label>Formel y(x) =</label>
+          <input type="text" class="formula-field" value="${escAttr(g.customExpr || '')}"
+                 onchange="updateCustomExpr(${g.id}, this.value)"
+                 placeholder="fx a*exp(-((x-b)/c)^2)">
+        </div>
+      </div>
+      <div style="margin-top: 8px;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px;">Startgæt for parametre:</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+          ${paramFields}
+          <button class="small" onclick="addCustomParam(${g.id})">+ Parameter</button>
+        </div>
+      </div>
+      <div class="custom-reg-hint">
+        Brug <code>x</code> som variabel og bogstaver (a, b, c, …) som parametre. Tilgængelige funktioner:
+        <code>sin</code>, <code>cos</code>, <code>tan</code> (i grader), <code>exp</code>, <code>ln</code>, <code>log</code>, <code>sqrt</code>, <code>abs</code>.
+        Eksempler: <code>a*exp(-((x-b)/c)^2)</code> (Gauss), <code>a*sin(b*x+c)</code> (svingning), <code>a*exp(-b*x)*cos(c*x+d)</code> (dæmpet svingning).
+      </div>
+    </div>
+  `;
+}
+
+function updateCustomExpr(id, value) {
+  const g = state.graphs.find(g => g.id === id);
+  if (g) g.customExpr = value;
+  render();
+}
+
+function updateCustomParam(id, name, value) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  if (!g.customParams) g.customParams = {};
+  g.customParams[name] = value;
+  render();
+}
+
+function addCustomParam(id) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  if (!g.customParams) g.customParams = {};
+  // Find næste ledige bogstav
+  const used = new Set(Object.keys(g.customParams));
+  const candidates = ['a','b','c','d','e','f','g','h','k','m','n','p','q','r','s','t','u','v','w'];
+  let name = null;
+  for (const cand of candidates) {
+    if (!used.has(cand)) { name = cand; break; }
+  }
+  if (!name) name = 'p' + (Object.keys(g.customParams).length + 1);
+  g.customParams[name] = '1';
+  render();
+}
+
+function removeCustomParam(id, name) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g || !g.customParams) return;
+  delete g.customParams[name];
+  render();
+}
+
+/* Kopiér et chart-canvas direkte til udklipsholder som PNG.
+   which = 'main' eller 'residual'. Bevarer aspect ratio og opløsning. */
+async function copyChart(id, which) {
+  const insts = chartInstances[id];
+  if (!insts || !insts[which]) {
+    showToast('Grafen er ikke klar endnu.');
+    return;
+  }
+
+  const sourceCanvas = insts[which].canvas;
+
+  // Lav et nyt canvas med hvid baggrund (Chart.js's canvas er transparent,
+  // hvilket ser dårligt ud i Word/Pages som har lyse baggrunde)
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceCanvas.width;
+  canvas.height = sourceCanvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(sourceCanvas, 0, 0);
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) {
+      showToast('Kunne ikke generere billede.');
+      return;
+    }
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      showToast(which === 'main' ? 'Graf kopieret' : 'Residualplot kopieret');
+    } catch (err) {
+      // Fallback: download som fil hvis clipboard ikke virker
+      console.warn('Clipboard fejlede, downloader i stedet:', err);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const suffix = which === 'main' ? 'graf' : 'residualer';
+      a.download = suffix + '_' + new Date().toISOString().slice(0, 10) + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Udklipsholder ikke tilgængelig — billedet er downloadet');
+    }
+  }, 'image/png');
+}
+
+/* Lille toast-besked nederst */
+let toastTimer = null;
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 2500);
+}
+
+/* Chart.js-plugin der tegner pile-akser ved x=0 og y=0 hvor det er meningsfuldt.
+   Hvis 0 er inden for det viste interval på en akse, tegnes en linje med pile-spids
+   ved positiv ende. Hvis ikke, springes aksen over. */
+const axisArrowPlugin = {
+  id: 'axisArrows',
+  afterDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales.x || !scales.y) return;
+    const { left, right, top, bottom } = chartArea;
+    const xScale = scales.x;
+    const yScale = scales.y;
+    const arrowSize = 7;
+    // Margen så pilen ikke ligger lige ved kanten (og dermed klippes)
+    const margin = arrowSize + 2;
+
+    ctx.save();
+    ctx.strokeStyle = '#666';
+    ctx.fillStyle = '#666';
+    ctx.lineWidth = 1.2;
+
+    // Tegn x-akse (horisontal linje ved y=0) hvis y=0 er i intervallet
+    if (yScale.min <= 0 && yScale.max >= 0) {
+      const y0 = yScale.getPixelForValue(0);
+      // Linjen går fra venstre kant til lige før højre kant; pilespidsen sidder ved enden
+      ctx.beginPath();
+      ctx.moveTo(left, y0);
+      ctx.lineTo(right - margin, y0);
+      ctx.stroke();
+      drawArrowhead(ctx, right - margin, y0, 'right', arrowSize);
+    }
+
+    // Tegn y-akse (vertikal linje ved x=0) hvis x=0 er i intervallet
+    if (xScale.min <= 0 && xScale.max >= 0) {
+      const x0 = xScale.getPixelForValue(0);
+      ctx.beginPath();
+      ctx.moveTo(x0, bottom);
+      ctx.lineTo(x0, top + margin);
+      ctx.stroke();
+      drawArrowhead(ctx, x0, top + margin, 'up', arrowSize);
+    }
+
+    ctx.restore();
+  }
+};
+
+function drawArrowhead(ctx, x, y, dir, size) {
+  size = size || 7;
+  ctx.beginPath();
+  if (dir === 'right') {
+    ctx.moveTo(x + size, y);
+    ctx.lineTo(x, y - size * 0.5);
+    ctx.lineTo(x, y + size * 0.5);
+  } else if (dir === 'up') {
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x - size * 0.5, y);
+    ctx.lineTo(x + size * 0.5, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* Beregn pæn min/max for en akse med en lille luft-buffer.
+   - padFrac: hvor meget luft som procent af data-intervallet (typisk 0.08 = 8%)
+   - includeZero: hvis sandt, sikrer at 0 er med i intervallet (gør pile-akser meningsfulde)
+   Returnerer null hvis intet meningsfuldt kan beregnes. */
+function niceAxisRange(values, padFrac, includeZero) {
+  const finite = values.filter(v => isFinite(v));
+  if (finite.length === 0) return null;
+  let min = Math.min(...finite);
+  let max = Math.max(...finite);
+  if (includeZero) {
+    min = Math.min(min, 0);
+    max = Math.max(max, 0);
+  }
+  const range = max - min;
+  if (range === 0) {
+    // Alle værdier er ens — giv et lille rum omkring
+    const pad = Math.abs(max) * 0.1 || 1;
+    return { min: min - pad, max: max + pad };
+  }
+  return {
+    min: min - range * padFrac,
+    max: max + range * padFrac
+  };
+}
+
+let chartInstances = {}; // id -> { main, residual }
+
+function renderGraphs() {
+  const container = document.getElementById('graphs-container');
+
+  // Dræb gamle Chart-instanser før vi rydder DOM'en
+  for (const id in chartInstances) {
+    if (chartInstances[id].main) chartInstances[id].main.destroy();
+    if (chartInstances[id].residual) chartInstances[id].residual.destroy();
+  }
+  chartInstances = {};
+
+  container.innerHTML = '';
+
+  if (state.graphs.length === 0) {
+    container.innerHTML = '<div class="empty-state">Ingen grafer endnu. Klik "+ Tilføj graf" for at oprette en.</div>';
+    return;
+  }
+
+  // Byg kolonne-options
+  const colOptions = state.columns.map(c => `<option value="${escAttr(c.symbol)}">${escHtml(formatColHeader(c))}</option>`).join('');
+
+  state.graphs.forEach(g => {
+    const block = document.createElement('div');
+    block.className = 'graph-block';
+
+    block.innerHTML = `
+      <div class="graph-controls">
+        <div class="field">
+          <label>x-akse</label>
+          <select onchange="updateGraph(${g.id}, 'xSym', this.value)">
+            ${state.columns.map(c => `<option value="${escAttr(c.symbol)}" ${c.symbol === g.xSym ? 'selected' : ''}>${escHtml(formatColHeader(c))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>y-akse</label>
+          <select onchange="updateGraph(${g.id}, 'ySym', this.value)">
+            ${state.columns.map(c => `<option value="${escAttr(c.symbol)}" ${c.symbol === g.ySym ? 'selected' : ''}>${escHtml(formatColHeader(c))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Regressionstype</label>
+          <select onchange="onRegTypeChange(${g.id}, this.value)">
+            ${REGRESSION_TYPES.map(r => `<option value="${r.id}" ${r.id === g.regType ? 'selected' : ''}>${escHtml(r.label_dropdown)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="margin-left:auto;">
+          <button class="danger small" onclick="removeGraph(${g.id})">Fjern graf</button>
+        </div>
+      </div>
+      <div class="axis-controls">
+        <span class="axis-label">x:</span>
+        <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+               value="${escAttr(g.xMin != null ? g.xMin : '')}"
+               onchange="updateAxisRange(${g.id}, 'xMin', this.value)"
+               title="Minimum på x-aksen (tomt = auto)">
+        <span class="axis-sep">til</span>
+        <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+               value="${escAttr(g.xMax != null ? g.xMax : '')}"
+               onchange="updateAxisRange(${g.id}, 'xMax', this.value)"
+               title="Maksimum på x-aksen (tomt = auto)">
+        <span class="axis-label" style="margin-left: 16px;">y:</span>
+        <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+               value="${escAttr(g.yMin != null ? g.yMin : '')}"
+               onchange="updateAxisRange(${g.id}, 'yMin', this.value)"
+               title="Minimum på y-aksen (tomt = auto)">
+        <span class="axis-sep">til</span>
+        <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+               value="${escAttr(g.yMax != null ? g.yMax : '')}"
+               onchange="updateAxisRange(${g.id}, 'yMax', this.value)"
+               title="Maksimum på y-aksen (tomt = auto)">
+        <button class="small" onclick="resetAxisRange(${g.id})" title="Nulstil til automatisk skala">Auto</button>
+      </div>
+      ${g.regType === 'custom' ? renderCustomRegEditor(g) : ''}
+      <div class="graph-charts">
+        <div>
+          <div class="chart-label-row">
+            <span class="chart-label">Data og fit</span>
+            <button class="small chart-copy-btn" onclick="copyChart(${g.id}, 'main')" title="Kopiér grafen til udklipsholder">📋 Kopiér</button>
+          </div>
+          <div class="chart-container"><canvas id="chart-main-${g.id}"></canvas></div>
+        </div>
+        <div>
+          <div class="chart-label-row">
+            <span class="chart-label">Residualer (y − ŷ)</span>
+            <button class="small chart-copy-btn" onclick="copyChart(${g.id}, 'residual')" title="Kopiér residualplottet til udklipsholder">📋 Kopiér</button>
+          </div>
+          <div class="chart-container"><canvas id="chart-res-${g.id}"></canvas></div>
+        </div>
+      </div>
+      <div class="result-box" id="result-${g.id}"></div>
+    `;
+    container.appendChild(block);
+  });
+
+  // Nu hvor DOM'en er på plads, byg charts
+  state.graphs.forEach(g => buildGraph(g));
+}
+
+function buildGraph(g) {
+  const xCol = state.columns.find(c => c.symbol === g.xSym);
+  const yCol = state.columns.find(c => c.symbol === g.ySym);
+  const resultBox = document.getElementById(`result-${g.id}`);
+
+  if (!xCol || !yCol) {
+    resultBox.innerHTML = '<span class="warn">Vælg gyldige kolonner.</span>';
+    return;
+  }
+
+  // Indsaml data fra inkluderede rækker
+  const allPoints = [];
+  const usedPoints = [];
+  state.rows.forEach((row, idx) => {
+    const ctx = rowContext(idx);
+    const x = ctx[g.xSym];
+    const y = ctx[g.ySym];
+    if (isFinite(x) && isFinite(y)) {
+      allPoints.push({ x, y, included: row.included });
+      if (row.included) usedPoints.push({ x, y });
+    }
+  });
+
+  const xs = usedPoints.map(p => p.x);
+  const ys = usedPoints.map(p => p.y);
+
+  let reg = null;
+  let regErr = null;
+  if (g.regType === 'none') {
+    // Brugeren har bevidst valgt ingen regression
+  } else if (g.regType === 'custom' && (!g.customExpr || !g.customParams || Object.keys(g.customParams).length === 0)) {
+    regErr = 'Indtast en formel og startgæt for parametrene.';
+  } else if (xs.length >= 2) {
+    try {
+      reg = runRegression(g.regType, xs, ys, g);
+    } catch (e) {
+      regErr = e.message;
+    }
+  } else {
+    regErr = 'Mindst 2 punkter kræves.';
+  }
+
+  // Byt aksetitler
+  const xTitle = formatColHeader(xCol);
+  const yTitle = formatColHeader(yCol);
+
+  // Generer fit-linje
+  let fitData = [];
+  let residuals = [];
+  let rmseVal = NaN;
+  if (reg) {
+    const minX = Math.min(...allPoints.map(p => p.x));
+    const maxX = Math.max(...allPoints.map(p => p.x));
+    const range = maxX - minX;
+    const steps = 100;
+    // For at få glat kurve, brug 100 punkter, men hvis regression typen er proportionalitet/lineær, så er 2 punkter nok
+    if (g.regType === 'prop' || g.regType === 'linear') {
+      const x0 = g.regType === 'prop' ? Math.min(0, minX) : minX - 0.05 * range;
+      const x1 = maxX + 0.05 * range;
+      fitData = [
+        { x: x0, y: reg.predict(x0) },
+        { x: x1, y: reg.predict(x1) }
+      ];
+    } else {
+      // Glat kurve
+      const x0 = minX - 0.02 * range;
+      const x1 = maxX + 0.02 * range;
+      for (let i = 0; i <= steps; i++) {
+        const x = x0 + (x1 - x0) * i / steps;
+        const y = reg.predict(x);
+        if (isFinite(y)) fitData.push({ x, y });
+      }
+    }
+
+    // Residualer for inkluderede punkter
+    residuals = usedPoints.map(p => ({ x: p.x, y: p.y - reg.predict(p.x) }));
+    rmseVal = rmse(reg.predict, xs, ys);
+  }
+
+  // Render result-box
+  if (reg) {
+    const formula = formatRegression(g.regType, reg.params, g);
+    const yUnit = yCol.unit ? ' ' + yCol.unit : '';
+    let paramHTML = '';
+    // Vis fittede parametre
+    for (const [pName, pVal] of Object.entries(reg.params)) {
+      paramHTML += `<div>${escHtml(pName)} = ${formatNum(pVal, 4)}</div>`;
+    }
+    resultBox.innerHTML = `
+      <div class="formula">${formula}</div>
+      ${paramHTML}
+      <div class="rmse">RMSE = ${formatNum(rmseVal, 4)}${yUnit} &nbsp;·&nbsp; ${xs.length} inkluderede punkter</div>
+    `;
+  } else if (g.regType === 'none') {
+    resultBox.innerHTML = `<div style="color: var(--muted); font-size: 13px;">${xs.length} inkluderede punkter. Vælg en regressionstype i dropdown'en for at lave en fit.</div>`;
+  } else {
+    resultBox.innerHTML = `<span class="warn">${regErr || 'Regression mislykkedes.'}</span>`;
+  }
+
+  // Datasæt: inkluderede + ekskluderede punkter visuelt forskellige
+  const includedPts = allPoints.filter(p => p.included);
+  const excludedPts = allPoints.filter(p => !p.included);
+
+  // Beregn pæn akseskala med luft — inkludér både data og fit-linje
+  const allXs = allPoints.map(p => p.x).concat(fitData.map(p => p.x));
+  const allYs = allPoints.map(p => p.y).concat(fitData.map(p => p.y));
+  const xAuto = niceAxisRange(allXs, 0.05, false);
+  const yAuto = niceAxisRange(allYs, 0.08, false);
+
+  // Brug brugerens manuelle værdier hvor de er sat, ellers auto
+  const xRange = {
+    min: g.xMin != null ? g.xMin : (xAuto ? xAuto.min : undefined),
+    max: g.xMax != null ? g.xMax : (xAuto ? xAuto.max : undefined)
+  };
+  const yRange = {
+    min: g.yMin != null ? g.yMin : (yAuto ? yAuto.min : undefined),
+    max: g.yMax != null ? g.yMax : (yAuto ? yAuto.max : undefined)
+  };
+
+  const mainCanvas = document.getElementById(`chart-main-${g.id}`);
+  if (mainCanvas) {
+    const datasets = [
+      {
+        label: 'Inkluderede',
+        data: includedPts.map(p => ({ x: p.x, y: p.y })),
+        backgroundColor: '#378ADD',
+        borderColor: '#378ADD',
+        pointRadius: 4,
+        showLine: false,
+        type: 'scatter'
+      }
+    ];
+    if (excludedPts.length > 0) {
+      datasets.push({
+        label: 'Ekskluderede',
+        data: excludedPts.map(p => ({ x: p.x, y: p.y })),
+        backgroundColor: '#ccc',
+        borderColor: '#ccc',
+        pointRadius: 4,
+        pointStyle: 'crossRot',
+        showLine: false,
+        type: 'scatter'
+      });
+    }
+    if (fitData.length > 0) {
+      datasets.push({
+        label: 'Fit',
+        data: fitData,
+        borderColor: '#993C1D',
+        backgroundColor: 'rgba(153, 60, 29, 0)',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        showLine: true,
+        type: 'line'
+      });
+    }
+
+    chartInstances[g.id] = chartInstances[g.id] || {};
+    chartInstances[g.id].main = new Chart(mainCanvas, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => `(${formatNum(item.parsed.x)}; ${formatNum(item.parsed.y)})`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: xTitle, font: { size: 13 } },
+            grid: { color: '#eee' },
+            min: xRange.min,
+            max: xRange.max
+          },
+          y: {
+            title: { display: true, text: yTitle, font: { size: 13 } },
+            grid: { color: '#eee' },
+            min: yRange.min,
+            max: yRange.max
+          }
+        }
+      },
+      plugins: [axisArrowPlugin]
+    });
+  }
+
+  // Residualplot
+  const resCanvas = document.getElementById(`chart-res-${g.id}`);
+  if (resCanvas) {
+    const datasets = [
+      {
+        label: 'Residualer',
+        data: residuals,
+        backgroundColor: '#1D9E75',
+        borderColor: '#1D9E75',
+        pointRadius: 4,
+        showLine: false
+      }
+    ];
+
+    // Akseskala for residualplot: y inkluderer altid 0; x matcher hovedgrafens range
+    const resYRange = niceAxisRange(residuals.map(r => r.y), 0.15, true);
+
+    chartInstances[g.id] = chartInstances[g.id] || {};
+    chartInstances[g.id].residual = new Chart(resCanvas, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => `(${formatNum(item.parsed.x)}; ${formatNum(item.parsed.y)})`
+            }
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: xTitle, font: { size: 13 } },
+            grid: { color: '#eee' },
+            min: xRange.min,
+            max: xRange.max
+          },
+          y: {
+            title: { display: true, text: 'Δ' + (yCol.symbol || 'y') + (yCol.unit ? ` (${yCol.unit})` : ''), font: { size: 13 } },
+            grid: { color: '#eee' },
+            min: resYRange ? resYRange.min : undefined,
+            max: resYRange ? resYRange.max : undefined
+          }
+        }
+      },
+      plugins: [axisArrowPlugin]
+    });
+  }
+}
+
+/* =====================================================================
+   GEM / INDLÆS / EKSPORT / IMPORT
+   ===================================================================== */
+
+const STORAGE_KEY = 'fysik_dataanalyse_v1';
+const SAVED_KEY = 'fysik_dataanalyse_saved_v1';
+
+function snapshotState() {
+  return {
+    constants: state.constants,
+    columns: state.columns,
+    rows: state.rows,
+    graphs: state.graphs.map(g => ({
+      id: g.id,
+      xSym: g.xSym,
+      ySym: g.ySym,
+      regType: g.regType,
+      customExpr: g.customExpr,
+      customParams: g.customParams,
+      xMin: g.xMin, xMax: g.xMax,
+      yMin: g.yMin, yMax: g.yMax
+    }))
+  };
+}
+
+function restoreState(snap) {
+  if (!snap) return;
+  state.constants = snap.constants || [];
+  state.columns = snap.columns || [];
+  state.rows = (snap.rows || []).map(r => ({
+    included: r.included !== false,
+    values: r.values || {}
+  }));
+  state.graphs = (snap.graphs || []).map((g, i) => ({
+    id: ++state._graphIdCounter,
+    xSym: g.xSym || '',
+    ySym: g.ySym || '',
+    regType: g.regType || 'none',
+    customExpr: g.customExpr || '',
+    customParams: g.customParams || {},
+    xMin: g.xMin != null ? g.xMin : null,
+    xMax: g.xMax != null ? g.xMax : null,
+    yMin: g.yMin != null ? g.yMin : null,
+    yMax: g.yMax != null ? g.yMax : null
+  }));
+  render();
+}
+
+let autosaveTimer = null;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshotState()));
+      const ind = document.getElementById('autosave-indicator');
+      const t = new Date();
+      ind.textContent = 'Gemt automatisk ' + t.toLocaleTimeString('da-DK');
+    } catch (e) {
+      console.warn('Kunne ikke autosave:', e);
+    }
+  }, 500);
+}
+
+function loadAutosaved() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) restoreState(JSON.parse(s));
+  } catch (e) {
+    console.warn('Kunne ikke indlæse autosave:', e);
+  }
+}
+
+function getSavedExperiments() {
+  try {
+    const s = localStorage.getItem(SAVED_KEY);
+    return s ? JSON.parse(s) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function setSavedExperiments(obj) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify(obj));
+}
+
+function openSaveModal() {
+  document.getElementById('save-name').value = '';
+  document.getElementById('save-modal').classList.add('visible');
+  setTimeout(() => document.getElementById('save-name').focus(), 50);
+}
+
+function saveNamed() {
+  const name = document.getElementById('save-name').value.trim();
+  if (!name) { alert('Angiv et navn.'); return; }
+  const saved = getSavedExperiments();
+  if (saved[name] && !confirm(`"${name}" findes allerede. Overskriv?`)) return;
+  saved[name] = { data: snapshotState(), savedAt: new Date().toISOString() };
+  setSavedExperiments(saved);
+  closeModal('save-modal');
+}
+
+function openLoadModal() {
+  const list = document.getElementById('saved-list');
+  const saved = getSavedExperiments();
+  const names = Object.keys(saved).sort();
+  if (names.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px;">Ingen gemte forsøg endnu.</div>';
+  } else {
+    list.innerHTML = names.map(name => {
+      const date = saved[name].savedAt ? new Date(saved[name].savedAt).toLocaleString('da-DK') : '';
+      return `<div class="saved-item">
+        <div class="saved-item-name" onclick="loadNamed('${escAttr(name)}')">
+          <strong>${escHtml(name)}</strong>
+          <div class="saved-item-meta">${escHtml(date)}</div>
+        </div>
+        <button class="icon danger" onclick="deleteNamed('${escAttr(name)}')" title="Slet">×</button>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('load-modal').classList.add('visible');
+}
+
+function loadNamed(name) {
+  const saved = getSavedExperiments();
+  if (!saved[name]) return;
+  if (!confirm(`Indlæs "${name}"? Din nuværende opsætning erstattes (men er stadig autosavet).`)) return;
+  restoreState(saved[name].data);
+  closeModal('load-modal');
+}
+
+function deleteNamed(name) {
+  if (!confirm(`Slet "${name}"?`)) return;
+  const saved = getSavedExperiments();
+  delete saved[name];
+  setSavedExperiments(saved);
+  openLoadModal();
+}
+
+function exportJSON() {
+  const data = snapshotState();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'grafio_projekt_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm('Indlæs fil? Din nuværende opsætning erstattes.')) return;
+      restoreState(data);
+    } catch (err) {
+      alert('Fejl ved indlæsning: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+/* =====================================================================
+   CSV-EKSPORT / IMPORT
+   ===================================================================== */
+
+function exportCSV() {
+  if (state.columns.length === 0 || state.rows.length === 0) {
+    alert('Ingen data at eksportere.');
+    return;
+  }
+  // Header
+  const headers = state.columns.map(c => formatColHeader(c));
+  // Rækker
+  const lines = [headers.map(csvEscape).join(';')];
+  state.rows.forEach((row, rowIdx) => {
+    const ctx = rowContext(rowIdx);
+    const vals = state.columns.map(col => {
+      if (col.type === 'data') {
+        const raw = row.values[col.symbol];
+        if (raw == null || raw === '') return '';
+        // Eksporter med komma som decimaltegn (dansk konvention)
+        return String(raw).replace('.', ',');
+      } else {
+        const v = ctx[col.symbol];
+        if (!isFinite(v)) return '';
+        // Eksporter beregnede med fuld præcision, men med komma
+        return String(v).replace('.', ',');
+      }
+    });
+    lines.push(vals.map(csvEscape).join(';'));
+  });
+  const csv = lines.join('\n');
+  // Tilføj UTF-8 BOM så Excel forstår æøå
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'grafio_data_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(s) {
+  s = String(s);
+  if (s.includes(';') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+let csvImportData = null; // gemmer parsed CSV mens brugeren vælger kolonner
+
+function importCSV(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      // Fjern evt. UTF-8 BOM
+      let text = e.target.result;
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const parsed = parseCSV(text);
+      if (!parsed || parsed.length === 0) {
+        alert('CSV-filen er tom eller kunne ikke læses.');
+        return;
+      }
+      csvImportData = parsed;
+      showCSVPreview(parsed);
+      document.getElementById('csv-modal').classList.add('visible');
+    } catch (err) {
+      alert('Fejl ved indlæsning af CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+function parseCSV(text) {
+  // Detektér delimiter ved at kigge på første linje: semikolon, komma eller tab
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const counts = {
+    ';': (firstLine.match(/;/g) || []).length,
+    ',': (firstLine.match(/,/g) || []).length,
+    '\t': (firstLine.match(/\t/g) || []).length
+  };
+  // Find den hyppigste
+  let delim = ';';
+  let max = 0;
+  for (const d in counts) {
+    if (counts[d] > max) { max = counts[d]; delim = d; }
+  }
+  if (max === 0) delim = ';';
+
+  const rows = [];
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    // Simpel CSV-parser med understøttelse af citerede felter
+    const fields = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else cur += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delim) { fields.push(cur); cur = ''; }
+        else cur += c;
+      }
+    }
+    fields.push(cur);
+    rows.push(fields);
+  }
+  return rows;
+}
+
+function showCSVPreview(rows) {
+  const preview = document.getElementById('csv-preview');
+  if (rows.length < 1) {
+    preview.innerHTML = '<p>Ingen rækker fundet.</p>';
+    return;
+  }
+
+  // Antag at første række er header. Prøv at gætte: hvis den indeholder mest tekst og ikke tal, så header.
+  let headerRow = rows[0];
+  let dataStartIdx = 1;
+  const firstRowLooksLikeHeader = headerRow.some(cell => {
+    const v = parseNum(cell);
+    return !isFinite(v) && cell.trim() !== '';
+  });
+  if (!firstRowLooksLikeHeader) {
+    // Ingen header — generer x, y, z, ...
+    headerRow = rows[0].map((_, i) => i === 0 ? 'x' : i === 1 ? 'y' : 'col' + (i+1));
+    dataStartIdx = 0;
+  }
+
+  const nCols = headerRow.length;
+  const dataRows = rows.slice(dataStartIdx);
+  const previewRows = dataRows.slice(0, 8);
+
+  // Gem til senere brug
+  csvImportData = {
+    headers: headerRow,
+    rows: dataRows,
+    selected: headerRow.map(() => true),
+    symbols: headerRow.map(h => parseColHeader(h))
+  };
+
+  let html = `<p style="font-size:12px; color: var(--muted); margin: 8px 0;">
+    Fundet ${dataRows.length} datarækker og ${nCols} kolonner. Forhåndsvisning af de første rækker:
+  </p>`;
+  html += '<div style="overflow-x: auto; border: 1px solid var(--panel-border); border-radius: 4px;"><table style="width:100%; border-collapse: collapse; font-size: 12px;">';
+
+  // Header-række med checkboxes og redigerbare symboler
+  html += '<thead><tr>';
+  for (let i = 0; i < nCols; i++) {
+    const sym = csvImportData.symbols[i].symbol;
+    const unit = csvImportData.symbols[i].unit;
+    html += `<th style="padding: 6px; border-bottom: 1px solid var(--panel-border); background: var(--panel); text-align: center;">
+      <div style="display:flex; flex-direction:column; gap: 4px; align-items: center;">
+        <label style="display: flex; gap: 4px; align-items: center; font-weight: 400;">
+          <input type="checkbox" ${csvImportData.selected[i] ? 'checked' : ''}
+                 onchange="csvImportData.selected[${i}] = this.checked;"
+                 class="csv-col-check"> Indlæs
+        </label>
+        <input type="text" value="${escAttr(sym)}" placeholder="symbol"
+               style="width: 70px; text-align: center; font-weight: 600;"
+               onchange="csvImportData.symbols[${i}].symbol = this.value;">
+        <input type="text" value="${escAttr(unit)}" placeholder="enhed"
+               style="width: 70px; text-align: center; font-size: 11px;"
+               onchange="csvImportData.symbols[${i}].unit = this.value;">
+      </div>
+    </th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  previewRows.forEach(r => {
+    html += '<tr>';
+    for (let i = 0; i < nCols; i++) {
+      const cell = r[i] != null ? r[i] : '';
+      html += `<td style="padding: 4px 6px; border-bottom: 1px solid var(--panel-border); text-align: center;">${escHtml(cell)}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  if (dataRows.length > 8) {
+    html += `<p style="font-size: 11px; color: var(--muted); margin-top: 6px;">+ ${dataRows.length - 8} flere rækker (skjult i forhåndsvisning).</p>`;
+  }
+  preview.innerHTML = html;
+}
+
+function applyCSVImport() {
+  if (!csvImportData) return;
+
+  const selectedCols = [];
+  for (let i = 0; i < csvImportData.headers.length; i++) {
+    if (csvImportData.selected[i]) {
+      const sym = csvImportData.symbols[i].symbol.trim();
+      if (!sym) {
+        alert(`Kolonne ${i+1} mangler et symbol.`);
+        return;
+      }
+      selectedCols.push({ idx: i, symbol: sym, unit: csvImportData.symbols[i].unit.trim() });
+    }
+  }
+
+  if (selectedCols.length === 0) {
+    alert('Vælg mindst én kolonne at indlæse.');
+    return;
+  }
+
+  if (!confirm(`Indlæs ${selectedCols.length} kolonner med ${csvImportData.rows.length} rækker?\n\nDe nuværende datakolonner og rækker erstattes (beregnede kolonner og grafer bevares).`)) return;
+
+  // Fjern eksisterende datakolonner men behold beregnede
+  state.columns = state.columns.filter(c => c.type === 'calc');
+
+  // Tilføj de nye datakolonner FØRST (foran beregnede)
+  const dataColumns = selectedCols.map(c => ({ type: 'data', symbol: c.symbol, unit: c.unit }));
+  state.columns = [...dataColumns, ...state.columns];
+
+  // Konvertér rækker
+  state.rows = csvImportData.rows.map(rawRow => {
+    const values = {};
+    for (const c of selectedCols) {
+      let raw = rawRow[c.idx];
+      if (raw != null) raw = String(raw).trim();
+      values[c.symbol] = raw || '';
+    }
+    return { included: true, values };
+  });
+
+  closeModal('csv-modal');
+  csvImportData = null;
+  render();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+/* Default-tilstand: to datakolonner x og y, 5 tomme rækker, én tom graf.
+   Bruges ved første opstart, ved "Nulstil alt", og når ?fresh=1 er i URL'en. */
+function resetToDefault() {
+  state.constants = [];
+  state.columns = [
+    { type: 'data', symbol: 'x', unit: '' },
+    { type: 'data', symbol: 'y', unit: '' }
+  ];
+  state.rows = [];
+  for (let i = 0; i < 5; i++) state.rows.push({ included: true, values: {} });
+  state.graphs = [{
+    id: state._graphIdCounter++,
+    xSym: 'x',
+    ySym: 'y',
+    regType: 'none'
+  }];
+}
+
+function confirmReset() {
+  if (!confirm('Nulstil alt? Tabellen starter forfra med x- og y-kolonner. Konstanter og grafer slettes.')) return;
+  resetToDefault();
+  render();
+}
+
+/* =====================================================================
+   OPSTART
+   ===================================================================== */
+
+// Tjek for ?fresh=1 i URL'en — udvikler-workflow til at ignorere autosave
+const urlParams = new URLSearchParams(window.location.search);
+const freshStart = urlParams.get('fresh') === '1';
+
+if (freshStart) {
+  resetToDefault();
+} else {
+  loadAutosaved();
+  // Hvis autosave gav en helt tom tilstand (fx ved første åbning), brug default
+  if (state.columns.length === 0 && state.rows.length === 0 && state.constants.length === 0) {
+    resetToDefault();
+  }
+}
+render();
+
+// Byg symbol-palette indhold
+buildSymbolPalette();
+
+// Spor sidst-fokuserede tekstfelt globalt, så symbol-paletten ved hvor den skal indsætte
+document.addEventListener('focusin', trackInputFocus);
+
+// Luk modaler ved klik på baggrund
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', (e) => {
+    if (e.target === bg) bg.classList.remove('visible');
+  });
+});
+
+// Enter i save-name dialog
+document.getElementById('save-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') saveNamed();
+});
+
+</script>
+
+</body>
+</html>

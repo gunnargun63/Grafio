@@ -248,6 +248,27 @@
   th.action-col { width: 36px; min-width: 36px; background: #fafaf7; }
   td.row-num, td.action-cell { width: 36px; }
 
+  /* Statistik-rækker nederst i tabellen */
+  tr.stats-row td {
+    background: #fafaf7;
+    font-size: 12px;
+    padding: 4px 4px;
+    color: var(--text);
+  }
+  tr.stats-row-first td {
+    border-top: 2px solid var(--panel-border);
+    padding-top: 6px;
+  }
+  td.stats-label {
+    text-align: right;
+    color: var(--muted);
+    font-style: italic;
+    padding-right: 10px !important;
+  }
+  td.stats-cell {
+    text-align: center;
+  }
+
   .col-name-input {
     /* size-attribut sætter bredden i tegn — vi opdaterer den dynamisk i JS.
        min-width sikrer at korte symboler stadig har plads til klik. */
@@ -408,6 +429,53 @@
     font-size: 11px;
   }
 
+  /* Autocomplete-dropdown til formel-felt */
+  .autocomplete-wrap {
+    position: relative;
+  }
+  .autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 2px;
+    background: white;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 1000;
+    min-width: 220px;
+    display: none;
+  }
+  .autocomplete-list.visible {
+    display: block;
+  }
+  .autocomplete-item {
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #f3f3f3;
+  }
+  .autocomplete-item:last-child {
+    border-bottom: none;
+  }
+  .autocomplete-item:hover,
+  .autocomplete-item.selected {
+    background: #eef4fb;
+  }
+  .autocomplete-item .ac-sym {
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-weight: 500;
+  }
+  .autocomplete-item .ac-meta {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
   /* Grafer */
   .graph-block {
     border: 1px solid var(--panel-border);
@@ -482,6 +550,69 @@
   .axis-input:focus {
     outline: 1px solid var(--blue);
     background: white;
+  }
+
+  /* Integral-boks (vises pr. graf under axis-controls hvis aktiveret) */
+  .integral-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 8px 12px;
+    background: rgba(153, 60, 29, 0.05);
+    border: 1px solid rgba(153, 60, 29, 0.2);
+    border-radius: 4px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .integral-label {
+    font-weight: 600;
+    color: var(--brown);
+    font-family: 'Menlo', 'Monaco', monospace;
+  }
+  .integral-result {
+    margin-left: 12px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .integral-value {
+    font-family: 'Menlo', 'Monaco', monospace;
+  }
+  .integral-note {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 11px;
+  }
+
+  /* Tangent-boks (vises pr. graf under axis-controls hvis aktiveret) */
+  .tangent-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 8px 12px;
+    background: rgba(153, 60, 29, 0.05);
+    border: 1px solid rgba(153, 60, 29, 0.2);
+    border-radius: 4px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .tangent-label {
+    font-weight: 600;
+    color: var(--brown);
+  }
+  .tangent-result {
+    margin-left: 12px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .tangent-value {
+    font-family: 'Menlo', 'Monaco', monospace;
+  }
+  .tangent-note {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 11px;
   }
 
   .chart-label {
@@ -769,6 +900,8 @@
 <p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
 
 <div class="toolbar">
+  <button id="undo-btn" onclick="undo()" disabled title="Fortryd seneste ændring (Ctrl+Z / ⌘+Z)">↶ Fortryd</button>
+  <button id="redo-btn" onclick="redo()" disabled title="Gendan (Ctrl+Shift+Z / ⌘+Shift+Z)">↷ Gendan</button>
   <button onclick="openSaveModal()" title="Gemmer i browserens lager — virker kun på denne computer/browser">💾 Gem i browser...</button>
   <button onclick="openLoadModal()" title="Indlæs et forsøg gemt i denne browsers lager">📂 Indlæs fra browser</button>
   <button onclick="exportJSON()" title="Gem komplet projekt som .json-fil">⬇ Download projekt (.json)</button>
@@ -809,6 +942,7 @@
         <button onclick="addRow()">+ Tilføj række</button>
         <button onclick="addDataColumn()">+ Tilføj datakolonne</button>
         <button onclick="openFormulaEditor()">+ Tilføj beregnet kolonne</button>
+        <button onclick="toggleStats()" id="stats-toggle-btn" title="Vis middelværdi og spredning under hver kolonne">📊 Vis statistik</button>
       </div>
 
       <!-- Formel-editor -->
@@ -825,7 +959,15 @@
           </div>
           <div class="field">
             <label>Formel</label>
-            <input type="text" id="formula-expr" class="long" placeholder="fx U/I">
+            <div class="autocomplete-wrap">
+              <input type="text" id="formula-expr" class="long" placeholder="fx U/I"
+                     autocomplete="off"
+                     onfocus="showFormulaAutocomplete()"
+                     oninput="showFormulaAutocomplete()"
+                     onkeydown="formulaAutocompleteKey(event)"
+                     onblur="hideFormulaAutocomplete()">
+              <div class="autocomplete-list" id="formula-autocomplete"></div>
+            </div>
           </div>
           <button class="primary" onclick="saveFormulaColumn()">Gem kolonne</button>
           <button onclick="closeFormulaEditor()">Annullér</button>
@@ -835,6 +977,7 @@
           &nbsp;&nbsp;<strong>Funktioner:</strong> <code>sin(x)</code> <code>cos(x)</code> <code>tan(x)</code> (i grader),
           <code>asin</code> <code>acos</code> <code>atan</code>, <code>ln</code>, <code>log</code>, <code>exp</code>, <code>sqrt</code>, <code>abs</code>
           <br><strong>Referencer:</strong> Brug kolonnens symbol eller en konstants symbol, fx <code>U/I</code> eller <code>N - N_b</code>.
+          <br><strong>Afledet kolonne:</strong> <code>diff(s, t)</code> beregner d<i>s</i>/d<i>t</i> ved central forskel mellem nabopunkter (fx hastighed fra sted og tid). Skal stå alene.
         </div>
       </div>
     </div>
@@ -932,8 +1075,9 @@ const state = {
     // { included: true, values: { 'U': '1.0', 'I': '0.2' } }
   ],
   graphs: [
-    // { id, title, xSym, ySym, regType }
+    // { id, title, xSym, ySym, regType, xMin, xMax, yMin, yMax, integralFrom, integralTo, showIntegral }
   ],
+  showStats: false,
   _graphIdCounter: 1
 };
 
@@ -979,12 +1123,18 @@ function formatNum(v, sigFigs = 4) {
     const mantissa = v / Math.pow(10, exp);
     s = mantissa.toFixed(sigFigs - 1) + '·10' + supExp(exp);
   } else {
-    // Normal notation: vis altid mindst 1 decimal for at undgå "1235" for "1234.56"
-    const intDigits = Math.max(1, Math.floor(Math.log10(abs)) + 1);
-    const decDigits = Math.max(1, sigFigs - intDigits);
+    // Normal notation: vi vil have mindst sigFigs betydende cifre.
+    // E = floor(log10(|v|)) er positionen af det første betydende ciffer.
+    // For at få sigFigs betydende cifre skal vi vise (sigFigs - 1 - E) decimaler.
+    // Vi sikrer dog mindst 1 decimal når tallet ikke er rent (fx 1428,3
+    // hellere end 1428) — sigfigs-grænsen er underordnet ift. præcisionssignalet.
+    const E = Math.floor(Math.log10(abs));
+    const decDigits = Math.max(1, sigFigs - 1 - E);
     s = v.toFixed(decDigits);
-    // Fjern unødvendige bagstillede nuller for store tal
-    if (decDigits > 1) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    // Fjern overflødige bagstillede nuller, men behold mindst én decimal.
+    if (s.indexOf('.') !== -1) {
+      s = s.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    }
   }
   return s.replace('.', ',');
 }
@@ -1314,6 +1464,121 @@ function evalFormulaV2(formula, ctx) {
    BEREGN VÆRDIER FOR EN RÆKKE
    ===================================================================== */
 
+/* Cache til kolonne-niveau-operationer som diff(s, t). Disse kan ikke
+   beregnes rækkevis fordi de afhænger af naboværdier, så vi forhåndsberegner
+   hele kolonnen og slår op i denne cache fra rowContext.
+   Strukturen er: { 'kolonnesymbol': [v0, v1, v2, ...] } parallelt med state.rows.
+   Cachen ryddes ved hvert render via clearComputedCache(). */
+let _diffCache = {};
+
+function clearComputedCache() {
+  _diffCache = {};
+}
+
+/* Parser en formel og afgør om den er en simpel kolonne-niveau-operation.
+   Returnerer { kind, args } eller null. Lige nu understøttes kun:
+     diff(YSYM, XSYM)  → centralforskel d(YSYM)/d(XSYM) for hver række
+   Vi parser meget restriktivt: præcis "diff(NAVN, NAVN)" uden andet rundt om,
+   så brugeren ikke ved et tilfælde rammer et kompliceret udtryk hvor diff
+   indgår som mellemregning (det giver matematisk ikke mening).  */
+function parseColumnLevelFormula(formula) {
+  if (!formula) return null;
+  const m = String(formula).trim().match(/^diff\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)$/);
+  if (m) return { kind: 'diff', ySym: m[1], xSym: m[2] };
+  return null;
+}
+
+/* Beregn centralforskel d(y)/d(x) for hele tabellen.
+   - Indre punkter: (y[i+1] − y[i−1]) / (x[i+1] − x[i−1])
+   - Endepunkter: fremad/baglæns forskel
+   - Hvis x ikke er strengt monotont (eller indeholder NaN), så gives NaN for
+     berørte rækker. Vi sorterer IKKE rækkerne — det er brugerens ansvar at
+     ordne dem; vi laver bare forskel mellem nabopositioner i tabellen.
+     Det er den enkleste regel og passer til hvordan loggede måleserier ser ud. */
+function computeDiffColumn(ySym, xSym) {
+  const n = state.rows.length;
+  const result = new Array(n).fill(NaN);
+
+  // Hent x og y for alle rækker. Vi læser fra rowContext for at fange
+  // beregnede kolonner — men diff må ikke afhænge cirkulært af sig selv.
+  // For at undgå problemer læser vi kun data-kolonner og konstanter her
+  // (ikke andre beregnede kolonner). Det dækker 99 % af brugen.
+  const xs = new Array(n);
+  const ys = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const row = state.rows[i];
+    const xCol = state.columns.find(c => c.symbol === xSym);
+    const yCol = state.columns.find(c => c.symbol === ySym);
+    if (xCol && xCol.type === 'data') {
+      xs[i] = parseNum(row.values[xSym]);
+    } else {
+      // Tillad konstant eller anden beregnet kolonne: brug rowContext men
+      // pas på rekursion ved at midlertidigt skjule denne diff-kolonne.
+      xs[i] = parseNum(row.values[xSym]);
+      if (!isFinite(xs[i])) {
+        // Fallback: brug rowContext men accept at vi måske får NaN
+        const ctx = rowContextBasic(i);
+        xs[i] = ctx[xSym];
+      }
+    }
+    if (yCol && yCol.type === 'data') {
+      ys[i] = parseNum(row.values[ySym]);
+    } else {
+      ys[i] = parseNum(row.values[ySym]);
+      if (!isFinite(ys[i])) {
+        const ctx = rowContextBasic(i);
+        ys[i] = ctx[ySym];
+      }
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (!isFinite(xs[i]) || !isFinite(ys[i])) continue;
+    let prev = i - 1, next = i + 1;
+    // Spring ekskluderede rækker over så de ikke forurener forskellen
+    while (prev >= 0 && !state.rows[prev].included) prev--;
+    while (next < n && !state.rows[next].included) next++;
+
+    if (!state.rows[i].included) continue;
+
+    let dy, dx;
+    if (prev >= 0 && next < n && isFinite(xs[prev]) && isFinite(xs[next]) && isFinite(ys[prev]) && isFinite(ys[next])) {
+      // Centralforskel
+      dy = ys[next] - ys[prev];
+      dx = xs[next] - xs[prev];
+    } else if (next < n && isFinite(xs[next]) && isFinite(ys[next])) {
+      // Forlæns forskel (første brugbare punkt)
+      dy = ys[next] - ys[i];
+      dx = xs[next] - xs[i];
+    } else if (prev >= 0 && isFinite(xs[prev]) && isFinite(ys[prev])) {
+      // Baglæns forskel (sidste brugbare punkt)
+      dy = ys[i] - ys[prev];
+      dx = xs[i] - xs[prev];
+    } else {
+      continue;
+    }
+    if (dx !== 0 && isFinite(dx)) result[i] = dy / dx;
+  }
+  return result;
+}
+
+/* En "grundlæggende" rowContext der KUN ser data-kolonner og konstanter
+   — bruges af diff-beregningen for at undgå at diff(...) refererer rekursivt
+   til en anden beregnet kolonne der selv afhænger af diff. */
+function rowContextBasic(rowIdx) {
+  const row = state.rows[rowIdx];
+  const ctx = {};
+  for (const c of state.constants) {
+    if (c.symbol) ctx[c.symbol] = parseNum(c.value);
+  }
+  for (const col of state.columns) {
+    if (col.type === 'data' && col.symbol) {
+      ctx[col.symbol] = parseNum(row.values[col.symbol]);
+    }
+  }
+  return ctx;
+}
+
 function rowContext(rowIdx) {
   const row = state.rows[rowIdx];
   const ctx = {};
@@ -1327,11 +1592,28 @@ function rowContext(rowIdx) {
       ctx[col.symbol] = parseNum(row.values[col.symbol]);
     }
   }
+  // Tilføj kolonne-niveau-operationer (fx diff(s, t)) først.
+  // Disse er forhåndsberegnet i _diffCache; vi slår bare op her.
+  for (const col of state.columns) {
+    if (col.type !== 'calc' || !col.symbol) continue;
+    const kolop = parseColumnLevelFormula(col.formula);
+    if (kolop) {
+      if (!_diffCache[col.symbol]) {
+        if (kolop.kind === 'diff') {
+          _diffCache[col.symbol] = computeDiffColumn(kolop.ySym, kolop.xSym);
+        }
+      }
+      const arr = _diffCache[col.symbol];
+      if (arr) ctx[col.symbol] = arr[rowIdx];
+    }
+  }
   // Tilføj beregnede kolonner — flere passes så afhængigheder kan løses
   for (let pass = 0; pass < state.columns.length + 2; pass++) {
     let changed = false;
     for (const col of state.columns) {
       if (col.type === 'calc' && col.symbol && !(col.symbol in ctx)) {
+        // Spring kolonne-niveau-formler over — de er allerede håndteret ovenfor
+        if (parseColumnLevelFormula(col.formula)) continue;
         const v = evalFormulaV2(col.formula, ctx);
         if (isFinite(v)) {
           ctx[col.symbol] = v;
@@ -1360,6 +1642,7 @@ function computedValue(rowIdx, symbol) {
    ===================================================================== */
 
 function render() {
+  clearComputedCache();
   renderConstants();
   renderTable();
   renderGraphs();
@@ -1454,6 +1737,8 @@ function renderTable() {
         rowHTML += `<td class="data-cell">
           <input type="text" class="cell" inputmode="decimal"
                  value="${escAttr(row.values[col.symbol] || '')}"
+                 onfocus="cellOnFocus(${rowIdx}, '${escAttr(col.symbol)}')"
+                 onblur="cellOnBlur(${rowIdx}, '${escAttr(col.symbol)}')"
                  oninput="updateCellLive(${rowIdx}, '${escAttr(col.symbol)}', this.value)"
                  onkeydown="cellKeyDown(event, ${rowIdx}, ${colIdx})"
                  onpaste="cellPaste(event, ${rowIdx}, ${colIdx})">
@@ -1474,12 +1759,47 @@ function renderTable() {
     tbody.appendChild(tr);
   }
 
+  // Statistik-rækker hvis aktiveret
+  if (state.showStats && state.rows.length > 0) {
+    // Beregn statistik én gang pr. kolonne
+    const stats = state.columns.map(col => col.symbol ? columnStats(col.symbol) : null);
+
+    // Hjælper til at lave en statistik-række
+    function makeStatsRow(labelText, valueFn, isFirstStatsRow) {
+      const tr = document.createElement('tr');
+      tr.className = 'stats-row';
+      if (isFirstStatsRow) tr.classList.add('stats-row-first');
+      let html = `<td class="stats-label" colspan="2">${escHtml(labelText)}</td>`;
+      stats.forEach((s, idx) => {
+        const col = state.columns[idx];
+        if (!s || !col.symbol) {
+          html += `<td class="stats-cell">—</td>`;
+        } else {
+          html += `<td class="stats-cell">${valueFn(s)}</td>`;
+        }
+      });
+      html += `<td class="stats-cell"></td>`;
+      tr.innerHTML = html;
+      tbody.appendChild(tr);
+    }
+
+    makeStatsRow('Middelværdi',   s => formatNum(s.mean, 4), true);
+    makeStatsRow('Spredning (s)', s => isFinite(s.sd) ? formatNum(s.sd, 4) : '—', false);
+    makeStatsRow('s / √n',        s => isFinite(s.sem) ? formatNum(s.sem, 4) : '—', false);
+  }
+
   // Tilføj en ekstra header-celle til "fjern række"-kolonnen
   const lastHeaderRow = thead.querySelector('tr');
   const extraTh = document.createElement('th');
   extraTh.className = 'action-col';
   extraTh.textContent = '';
   lastHeaderRow.appendChild(extraTh);
+
+  // Opdater stats-toggle-knappens udseende
+  const statsBtn = document.getElementById('stats-toggle-btn');
+  if (statsBtn) {
+    statsBtn.textContent = state.showStats ? '📊 Skjul statistik' : '📊 Vis statistik';
+  }
 }
 
 function formatColHeader(col) {
@@ -1489,11 +1809,42 @@ function formatColHeader(col) {
 }
 
 function parseColHeader(s) {
-  // Parse "U (V)" eller "U(V)" til { symbol: 'U', unit: 'V' }
-  s = s.trim();
-  const m = s.match(/^([^\s(]+)\s*\(([^)]*)\)\s*$/);
-  if (m) return { symbol: m[1].trim(), unit: m[2].trim() };
-  return { symbol: s, unit: '' };
+  // Parse en kolonneoverskrift til { symbol, unit }.
+  // Understøttede formater:
+  //   "U (V)"               → symbol "U", unit "V"
+  //   "U(V)"                → symbol "U", unit "V"
+  //   "Latest: Time (s)"    → symbol "Time", unit "s"      (LoggerPro/Capstone-eksport)
+  //   "tid"                 → symbol "tid", unit ""
+  //   "Field 1: Voltage (V)"→ symbol "Voltage", unit "V"
+  // Symbolet renses så det er et gyldigt identifier (kun a-zA-Z0-9_),
+  // ellers virker det ikke i formler.
+  s = String(s).trim();
+
+  // Træk evt. "(enhed)" ud fra slutningen
+  let unit = '';
+  let core = s;
+  const mUnit = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+  if (mUnit) {
+    core = mUnit[1].trim();
+    unit = mUnit[2].trim();
+  }
+
+  // Hvis core indeholder "Label: faktisk_navn" (LoggerPro-mønster),
+  // så brug delen efter kolon som symbol.
+  const mColon = core.match(/^[^:]+:\s*(.+)$/);
+  if (mColon) core = mColon[1].trim();
+
+  // Rens core til et gyldigt identifier:
+  // erstat enhver sekvens af whitespace/specialtegn med underscore,
+  // og fjern førende/efterstående underscores.
+  let symbol = core
+    .replace(/[^a-zA-Z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  // Hvis symbolet starter med et ciffer, eller er tomt, præfiks med "v"
+  if (!symbol || /^[0-9]/.test(symbol)) symbol = 'v' + (symbol || '');
+
+  return { symbol, unit };
 }
 
 function escAttr(s) {
@@ -1647,6 +1998,7 @@ function cellPaste(ev, rowIdx, colIdx) {
   if (!hasNewline && !hasTab) return;
 
   ev.preventDefault();
+  pushUndo();
 
   // Parse pasted data som matrix
   const lines = text.split(/\r?\n/).filter(l => l.length > 0);
@@ -1689,24 +2041,63 @@ function updateCell(rowIdx, sym, value) {
   state.rows[rowIdx].values[sym] = value;
 }
 
+/* Celle-fokus/blur-handlere til undo-systemet.
+   onFocus: pusher snapshot af state'en lige FØR brugeren begynder at skrive.
+            Hvis state ikke er ændret siden sidste push (dvs. brugeren bare
+            navigerer rundt), gør pushUndo intet pga lastSnapshot-tjekket.
+   onBlur:  pusher snapshot af state'en EFTER brugeren er færdig med at skrive.
+            Det giver et checkpoint, så hvis brugeren skriver i celle A, blur'er,
+            skriver i celle B og trykker Ctrl+Z, så ruller første Ctrl+Z B's
+            ændring tilbage (ikke begge på én gang). */
+function cellOnFocus(rowIdx, sym) {
+  pushUndo();
+}
+
+function cellOnBlur(rowIdx, sym) {
+  pushUndo();
+}
+
 /* updateCellLive bruges ved oninput — gemmer værdien og opdaterer
    beregnede kolonner + grafer, men rører IKKE selve data-input-felterne,
    så markøren og fokus bevares mens man skriver eller bruger piletaster. */
 function updateCellLive(rowIdx, sym, value) {
   state.rows[rowIdx].values[sym] = value;
-  // Opdater kun beregnede celler i denne række (live)
+  // Diff-kolonner er kolonne-niveau-operationer; en ændring i én række kan
+  // påvirke værdier i nabo-rækker. Ryd cachen så vi får frisk beregning.
+  clearComputedCache();
+  // Tjek om der er nogen kolonne-niveau-kolonner (diff). Hvis ja, må vi
+  // opdatere ALLE rækkers beregnede celler, ikke kun den aktuelle.
+  const hasColLevel = state.columns.some(c => c.type === 'calc' && parseColumnLevelFormula(c.formula));
   const tbody = document.getElementById('table-body');
-  const tr = tbody.children[rowIdx];
-  if (tr) {
-    state.columns.forEach((col, colIdx) => {
-      if (col.type === 'calc') {
-        const cellNode = tr.children[2 + colIdx];
-        if (cellNode) {
-          const v = computedValue(rowIdx, col.symbol);
-          cellNode.textContent = formatNum(v);
+  if (hasColLevel) {
+    // Opdater alle rækkers beregnede celler
+    for (let i = 0; i < state.rows.length; i++) {
+      const tr = tbody.children[i];
+      if (!tr) continue;
+      state.columns.forEach((col, colIdx) => {
+        if (col.type === 'calc') {
+          const cellNode = tr.children[2 + colIdx];
+          if (cellNode) {
+            const v = computedValue(i, col.symbol);
+            cellNode.textContent = formatNum(v);
+          }
         }
-      }
-    });
+      });
+    }
+  } else {
+    // Hurtig sti: kun den aktuelle række
+    const tr = tbody.children[rowIdx];
+    if (tr) {
+      state.columns.forEach((col, colIdx) => {
+        if (col.type === 'calc') {
+          const cellNode = tr.children[2 + colIdx];
+          if (cellNode) {
+            const v = computedValue(rowIdx, col.symbol);
+            cellNode.textContent = formatNum(v);
+          }
+        }
+      });
+    }
   }
   // Opdater grafer (let — kun de der rører ved denne kolonne, men nemmest:
   // genbyg alle grafer da vi alligevel skal genberegne)
@@ -1715,10 +2106,12 @@ function updateCellLive(rowIdx, sym, value) {
 }
 
 function toggleRowIncluded(rowIdx) {
+  pushUndo();
   state.rows[rowIdx].included = !state.rows[rowIdx].included;
 }
 
 function updateColumnHeader(idx, value) {
+  pushUndo();
   const parsed = parseColHeader(value);
   const oldSymbol = state.columns[idx].symbol;
   state.columns[idx].symbol = parsed.symbol;
@@ -1735,20 +2128,52 @@ function updateColumnHeader(idx, value) {
 }
 
 function updateConstant(idx, key, value) {
+  pushUndo();
   state.constants[idx][key] = value;
 }
 
 function addConstant() {
+  pushUndo();
   state.constants.push({ symbol: '', value: '', unit: '' });
   render();
 }
 
 function removeConstant(idx) {
+  pushUndo();
   state.constants.splice(idx, 1);
   render();
 }
 
+/* Beregn statistik (middelværdi, spredning, spredning på middelværdi) for en kolonne.
+   Bruger inkluderede rækker og kun værdier der er endelige tal.
+   Spredning beregnes med n−1 i nævneren (empirisk standardafvigelse). */
+function columnStats(symbol) {
+  const values = [];
+  for (let i = 0; i < state.rows.length; i++) {
+    if (!state.rows[i].included) continue;
+    const ctx = rowContext(i);
+    const v = ctx[symbol];
+    if (isFinite(v)) values.push(v);
+  }
+  const n = values.length;
+  if (n < 1) return null;
+  const mean = values.reduce((s, v) => s + v, 0) / n;
+  if (n < 2) return { n, mean, sd: NaN, sem: NaN };
+  let sumSq = 0;
+  for (const v of values) sumSq += (v - mean) ** 2;
+  const sd = Math.sqrt(sumSq / (n - 1));
+  const sem = sd / Math.sqrt(n);
+  return { n, mean, sd, sem };
+}
+
+function toggleStats() {
+  pushUndo();
+  state.showStats = !state.showStats;
+  render();
+}
+
 function addRow(autoFocus = true) {
+  pushUndo();
   const newRow = { included: true, values: {} };
   state.rows.push(newRow);
   render();
@@ -1764,11 +2189,13 @@ function addRow(autoFocus = true) {
 }
 
 function removeRow(idx) {
+  pushUndo();
   state.rows.splice(idx, 1);
   render();
 }
 
 function addDataColumn() {
+  pushUndo();
   // Find et unikt forslag til symbol
   let symbol = 'x';
   const used = new Set(state.columns.map(c => c.symbol));
@@ -1786,6 +2213,7 @@ function addDataColumn() {
 
 function removeColumn(idx) {
   if (!confirm('Fjern kolonnen "' + state.columns[idx].symbol + '"? Data i kolonnen mistes.')) return;
+  pushUndo();
   const symbol = state.columns[idx].symbol;
   state.columns.splice(idx, 1);
   // Ryd data fra rækker
@@ -1833,6 +2261,7 @@ function saveFormulaColumn() {
   if (!symbol) { alert('Angiv et symbol.'); return; }
   if (!formula) { alert('Angiv en formel.'); return; }
 
+  pushUndo();
   if (editingColumnIdx != null) {
     state.columns[editingColumnIdx] = { type: 'calc', symbol, unit, formula };
   } else {
@@ -1840,6 +2269,191 @@ function saveFormulaColumn() {
   }
   closeFormulaEditor();
   render();
+}
+
+/* =====================================================================
+   AUTOCOMPLETE TIL FORMEL-FELT
+   ===================================================================== */
+
+/* Indbyggede funktioner som autocomplete skal foreslå. label vises i listen. */
+const AUTOCOMPLETE_FUNCTIONS = [
+  { name: 'sin',  insert: 'sin(',  label: 'sinus (grader)' },
+  { name: 'cos',  insert: 'cos(',  label: 'cosinus (grader)' },
+  { name: 'tan',  insert: 'tan(',  label: 'tangens (grader)' },
+  { name: 'asin', insert: 'asin(', label: 'arcus sinus (→ grader)' },
+  { name: 'acos', insert: 'acos(', label: 'arcus cosinus (→ grader)' },
+  { name: 'atan', insert: 'atan(', label: 'arcus tangens (→ grader)' },
+  { name: 'ln',   insert: 'ln(',   label: 'naturlig logaritme' },
+  { name: 'log',  insert: 'log(',  label: 'titalslogaritme' },
+  { name: 'exp',  insert: 'exp(',  label: 'eksponentialfunktion' },
+  { name: 'sqrt', insert: 'sqrt(', label: 'kvadratrod' },
+  { name: 'abs',  insert: 'abs(',  label: 'absolutværdi' },
+  { name: 'diff', insert: 'diff(', label: 'numerisk afledet (kolonner)' }
+];
+
+let _autocompleteIndex = 0; // markeret række i listen
+let _autocompleteItems = []; // den aktuelle filtrerede liste
+
+/* Find ordet (identifier) som cursor står midt i eller umiddelbart efter.
+   Returnerer { word, start, end } hvor start..end er positioner i strengen.
+   word kan være tom — så viser vi alle muligheder. */
+function extractCurrentToken(input) {
+  const value = input.value;
+  const caret = input.selectionStart;
+  // Gå bagud så længe tegnet er a-zA-Z0-9 eller _
+  let start = caret;
+  while (start > 0 && /[a-zA-Z0-9_]/.test(value[start - 1])) start--;
+  // Hvis ordet starter med et ciffer er det ikke en identifier (det er et tal)
+  if (start < caret && /[0-9]/.test(value[start])) {
+    return { word: '', start: caret, end: caret };
+  }
+  return { word: value.slice(start, caret), start, end: caret };
+}
+
+/* Returnerer alle gyldige autocomplete-kandidater. */
+function getAutocompleteCandidates() {
+  const items = [];
+  // Kolonner — alle undtagen den der redigeres
+  for (let i = 0; i < state.columns.length; i++) {
+    if (i === editingColumnIdx) continue;
+    const c = state.columns[i];
+    if (!c.symbol) continue;
+    const meta = c.unit
+      ? `${c.type === 'calc' ? 'beregnet kolonne' : 'kolonne'} (${c.unit})`
+      : (c.type === 'calc' ? 'beregnet kolonne' : 'kolonne');
+    items.push({ insert: c.symbol, label: c.symbol, meta });
+  }
+  // Konstanter
+  for (const k of state.constants) {
+    if (!k.symbol) continue;
+    const meta = k.unit ? `konstant (${k.unit})` : 'konstant';
+    items.push({ insert: k.symbol, label: k.symbol, meta });
+  }
+  // Funktioner
+  for (const f of AUTOCOMPLETE_FUNCTIONS) {
+    items.push({ insert: f.insert, label: f.name, meta: f.label });
+  }
+  return items;
+}
+
+function showFormulaAutocomplete() {
+  const input = document.getElementById('formula-expr');
+  const list = document.getElementById('formula-autocomplete');
+  if (!input || !list) return;
+  const { word } = extractCurrentToken(input);
+
+  const all = getAutocompleteCandidates();
+  // Filtrér på prefix (case-insensitive). Tom prefix → vis alle.
+  const q = word.toLowerCase();
+  let items = q
+    ? all.filter(it => it.label.toLowerCase().startsWith(q))
+    : all;
+
+  _autocompleteItems = items;
+  _autocompleteIndex = 0;
+  if (items.length === 0) {
+    list.classList.remove('visible');
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = items.map((it, idx) => `
+    <div class="autocomplete-item ${idx === 0 ? 'selected' : ''}"
+         data-idx="${idx}"
+         onmousedown="event.preventDefault(); pickAutocompleteItem(${idx})">
+      <span class="ac-sym">${escHtml(it.label)}</span>
+      <span class="ac-meta">${escHtml(it.meta)}</span>
+    </div>
+  `).join('');
+  list.classList.add('visible');
+}
+
+function hideFormulaAutocomplete() {
+  // Lille delay så onmousedown på et item når at fyre før blur lukker listen.
+  setTimeout(() => {
+    const list = document.getElementById('formula-autocomplete');
+    if (list) {
+      list.classList.remove('visible');
+      list.innerHTML = '';
+    }
+    _autocompleteItems = [];
+  }, 120);
+}
+
+function pickAutocompleteItem(idx) {
+  const input = document.getElementById('formula-expr');
+  if (!input || !_autocompleteItems[idx]) return;
+  const item = _autocompleteItems[idx];
+  const { start, end } = extractCurrentToken(input);
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+  input.value = before + item.insert + after;
+  // Sæt cursor lige efter det indsatte
+  const newPos = (before + item.insert).length;
+  input.focus();
+  input.setSelectionRange(newPos, newPos);
+  // Skjul listen og opdater (case: funktion med "(" — vis næste forslag)
+  const list = document.getElementById('formula-autocomplete');
+  if (list) {
+    list.classList.remove('visible');
+    list.innerHTML = '';
+  }
+  // Hvis vi netop indsatte en funktions-prefix der ender på "(", vis ny liste
+  // så brugeren kan plukke et kolonne-symbol som argument.
+  if (item.insert.endsWith('(')) {
+    setTimeout(showFormulaAutocomplete, 0);
+  }
+}
+
+function formulaAutocompleteKey(ev) {
+  const list = document.getElementById('formula-autocomplete');
+  const isOpen = list && list.classList.contains('visible') && _autocompleteItems.length > 0;
+  if (!isOpen) return;
+
+  if (ev.key === 'ArrowDown') {
+    ev.preventDefault();
+    _autocompleteIndex = (_autocompleteIndex + 1) % _autocompleteItems.length;
+    updateAutocompleteSelection();
+  } else if (ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    _autocompleteIndex = (_autocompleteIndex - 1 + _autocompleteItems.length) % _autocompleteItems.length;
+    updateAutocompleteSelection();
+  } else if (ev.key === 'Enter') {
+    // Enter pick'er kun forslaget hvis det reelt ville ændre teksten — så
+    // når brugeren er færdig med at skrive et komplet symbol (prefix er
+    // allerede lig forslaget), falder Enter igennem og kan trigge gem.
+    const input = document.getElementById('formula-expr');
+    const { word } = extractCurrentToken(input);
+    const chosen = _autocompleteItems[_autocompleteIndex];
+    if (chosen && chosen.insert !== word) {
+      ev.preventDefault();
+      pickAutocompleteItem(_autocompleteIndex);
+    }
+    // ellers: lad Enter passere (vil ikke gøre noget i denne dialog,
+    // men kan blive grebet af eventuel form-handler)
+  } else if (ev.key === 'Tab') {
+    // Tab pick'er altid — det er den klassiske autocomplete-genvej.
+    ev.preventDefault();
+    pickAutocompleteItem(_autocompleteIndex);
+  } else if (ev.key === 'Escape') {
+    ev.preventDefault();
+    list.classList.remove('visible');
+    list.innerHTML = '';
+    _autocompleteItems = [];
+  }
+}
+
+function updateAutocompleteSelection() {
+  const list = document.getElementById('formula-autocomplete');
+  if (!list) return;
+  const items = list.querySelectorAll('.autocomplete-item');
+  items.forEach((el, i) => {
+    el.classList.toggle('selected', i === _autocompleteIndex);
+    if (i === _autocompleteIndex) {
+      // Hold valgt element synligt i scrolling
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  });
 }
 
 /* =====================================================================
@@ -2391,11 +3005,46 @@ function formatRegression(type, params, graphState) {
   return '';
 }
 
+/* Plain-text version af regressionsformlen (til chart-titel som ikke understøtter HTML).
+   Bruger Unicode hævede tegn i stedet for <sup>-tags. */
+function formatRegressionPlain(type, params, graphState) {
+  const a = params.a != null ? formatNum(params.a, 4) : null;
+  const b = params.b != null ? formatNum(params.b, 4) : null;
+  const c = params.c != null ? formatNum(params.c, 4) : null;
+  const signNum = (v) => (v >= 0 ? '+ ' : '− ') + formatNum(Math.abs(v), 4);
+  // Konvertér streng med ascii-tegn til Unicode hævede tegn
+  function toSup(s) {
+    const map = {
+      '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
+      '-':'⁻','+':'⁺','.':'·',',':'·','·':'·','x':'ˣ','e':'ᵉ','(':'⁽',')':'⁾'
+    };
+    return String(s).split('').map(c => map[c] || c).join('');
+  }
+  switch (type) {
+    case 'prop':     return `y = ${a}·x`;
+    case 'linear':   return `y = ${a}·x ${signNum(params.b)}`;
+    case 'quad':     return `y = ${a}·x² ${signNum(params.b)}·x ${signNum(params.c)}`;
+    case 'power':    return `y = ${a}·x${toSup(b)}`;
+    case 'exp':      return `y = ${a}·e${toSup(b + '·x')}`;
+    case 'exp_off':  return `y = ${a}·e${toSup(b + '·x')} ${signNum(params.c)}`;
+    case 'inv':      return `y = ${a}/x`;
+    case 'inv_off':  return `y = ${a}/(x ${signNum(params.b)})`;
+    case 'inv2':     return `y = ${a}/x²`;
+    case 'inv2_off': return `y = ${a}/(x ${signNum(params.b)})²`;
+    case 'sqrt':     return `y = ${a}·√x`;
+    case 'custom':
+      if (!graphState) return '';
+      return `y = ${graphState.customExpr || ''}`;
+  }
+  return '';
+}
+
 /* =====================================================================
    GRAFER
    ===================================================================== */
 
 function addGraph() {
+  pushUndo();
   // Find første to numeriske kolonner som default
   const symbols = state.columns.map(c => c.symbol).filter(Boolean);
   const xSym = symbols[0] || '';
@@ -2410,11 +3059,13 @@ function addGraph() {
 }
 
 function removeGraph(id) {
+  pushUndo();
   state.graphs = state.graphs.filter(g => g.id !== id);
   render();
 }
 
 function updateGraph(id, key, value) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (g) g[key] = value;
   render();
@@ -2422,6 +3073,7 @@ function updateGraph(id, key, value) {
 
 /* Opdater en akse-grænse fra et input-felt. Tom streng eller ugyldigt tal = null (auto). */
 function updateAxisRange(id, key, value) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   const trimmed = String(value).trim();
@@ -2436,6 +3088,7 @@ function updateAxisRange(id, key, value) {
 
 /* Nulstil alle fire akse-grænser til auto. */
 function resetAxisRange(id) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   g.xMin = null;
@@ -2445,7 +3098,329 @@ function resetAxisRange(id) {
   render();
 }
 
+/* Toggle visning af integral-boksen for en graf */
+function toggleIntegral(id) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  g.showIntegral = !g.showIntegral;
+  render();
+}
+
+function updateIntegralRange(id, key, value) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    g[key] = null;
+  } else {
+    const num = parseNum(trimmed);
+    g[key] = isFinite(num) ? num : null;
+  }
+  render();
+}
+
+/* Beregn integral af data (trapezregel) mellem to x-værdier.
+   Bruger kun inkluderede rækker hvor både x og y er endelige tal. */
+function computeDataIntegral(xs, ys, a, b) {
+  if (a > b) { const t = a; a = b; b = t; }
+  // Sortér punkter efter x
+  const pts = xs.map((x, i) => ({ x, y: ys[i] }))
+    .filter(p => isFinite(p.x) && isFinite(p.y))
+    .sort((p1, p2) => p1.x - p2.x);
+  if (pts.length < 2) return null;
+
+  // Lineær interpolation hjælper til at finde y ved en bestemt x
+  function interp(x) {
+    if (x <= pts[0].x) return pts[0].y;
+    if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (x >= pts[i].x && x <= pts[i+1].x) {
+        const t = (x - pts[i].x) / (pts[i+1].x - pts[i].x);
+        return pts[i].y + t * (pts[i+1].y - pts[i].y);
+      }
+    }
+    return NaN;
+  }
+
+  // Indsaml punkter til trapezregel: a, alle interne datapunkter mellem a og b, b
+  const integrationPts = [];
+  integrationPts.push({ x: a, y: interp(a) });
+  for (const p of pts) {
+    if (p.x > a && p.x < b) integrationPts.push(p);
+  }
+  integrationPts.push({ x: b, y: interp(b) });
+
+  // Trapezregel
+  let sum = 0;
+  for (let i = 0; i < integrationPts.length - 1; i++) {
+    const dx = integrationPts[i+1].x - integrationPts[i].x;
+    const ymean = (integrationPts[i].y + integrationPts[i+1].y) / 2;
+    sum += dx * ymean;
+  }
+  return sum;
+}
+
+/* Beregn integral af fit-funktion (numerisk via Simpson eller fin trapez) */
+function computeFitIntegral(predict, a, b, n) {
+  if (a > b) { const t = a; a = b; b = t; }
+  n = n || 1000;
+  if (n % 2 === 1) n++; // Simpson kræver lige antal intervaller
+  const h = (b - a) / n;
+  let sum = predict(a) + predict(b);
+  for (let i = 1; i < n; i++) {
+    const x = a + i * h;
+    const y = predict(x);
+    if (!isFinite(y)) return null;
+    sum += (i % 2 === 0 ? 2 : 4) * y;
+  }
+  return (h / 3) * sum;
+}
+
+function renderIntegralBox(g) {
+  return `
+    <div class="integral-box" id="integral-box-${g.id}">
+      <span class="integral-label">∫ fra</span>
+      <input type="text" class="axis-input" inputmode="decimal" placeholder="x-fra"
+             value="${escAttr(g.integralFrom != null ? g.integralFrom : '')}"
+             onchange="updateIntegralRange(${g.id}, 'integralFrom', this.value)">
+      <span class="integral-label">til</span>
+      <input type="text" class="axis-input" inputmode="decimal" placeholder="x-til"
+             value="${escAttr(g.integralTo != null ? g.integralTo : '')}"
+             onchange="updateIntegralRange(${g.id}, 'integralTo', this.value)">
+      <span class="integral-result" id="integral-result-${g.id}"></span>
+    </div>
+  `;
+}
+
+/* Tangent-toggle og tilhørende funktioner */
+function toggleTangent(id) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  g.showTangent = !g.showTangent;
+  render();
+}
+
+function updateTangentPoint(id, value) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    g.tangentX = null;
+  } else {
+    const num = parseNum(trimmed);
+    g.tangentX = isFinite(num) ? num : null;
+  }
+  render();
+}
+
+function renderTangentBox(g) {
+  return `
+    <div class="tangent-box" id="tangent-box-${g.id}">
+      <span class="tangent-label">Tangent ved x =</span>
+      <input type="text" class="axis-input" inputmode="decimal" placeholder="x"
+             value="${escAttr(g.tangentX != null ? g.tangentX : '')}"
+             onchange="updateTangentPoint(${g.id}, this.value)">
+      <span class="tangent-result" id="tangent-result-${g.id}"></span>
+    </div>
+  `;
+}
+
+/* Fit-interval-toggle og felter.
+   Når fitFrom/fitTo er sat, bruger regression kun datapunkter med
+   fitFrom ≤ x ≤ fitTo. Andre punkter vises stadig på grafen men i lysere farve
+   så det er tydeligt at de ikke indgår i fittet. */
+function toggleFitRange(id) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  g.showFitRange = !g.showFitRange;
+  // Når feltet åbnes for første gang og der ikke er valgt et interval endnu,
+  // giv et fornuftigt default: 25 % til 75 % af datas x-interval — det tvinger
+  // brugeren til at se at det reelt afgrænser fittet uden at de selv skal regne.
+  if (g.showFitRange && g.fitFrom == null && g.fitTo == null) {
+    const xs = [];
+    state.rows.forEach((row, idx) => {
+      if (!row.included) return;
+      const ctx = rowContext(idx);
+      const x = ctx[g.xSym];
+      if (isFinite(x)) xs.push(x);
+    });
+    if (xs.length >= 2) {
+      const lo = Math.min(...xs);
+      const hi = Math.max(...xs);
+      const span = hi - lo;
+      g.fitFrom = +(lo + 0.25 * span).toPrecision(3);
+      g.fitTo = +(lo + 0.75 * span).toPrecision(3);
+    }
+  }
+  render();
+}
+
+function updateFitRange(id, key, value) {
+  pushUndo();
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    g[key] = null;
+  } else {
+    const num = parseNum(trimmed);
+    g[key] = isFinite(num) ? num : null;
+  }
+  render();
+}
+
+function renderFitRangeBox(g) {
+  return `
+    <div class="tangent-box" id="fit-range-box-${g.id}">
+      <span class="tangent-label">Fit-interval: x fra</span>
+      <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+             value="${escAttr(g.fitFrom != null ? g.fitFrom : '')}"
+             onchange="updateFitRange(${g.id}, 'fitFrom', this.value)"
+             title="Kun punkter med x ≥ denne værdi bruges i regression (tomt = ingen nedre grænse)">
+      <span class="axis-sep">til</span>
+      <input type="text" class="axis-input" inputmode="decimal" placeholder="auto"
+             value="${escAttr(g.fitTo != null ? g.fitTo : '')}"
+             onchange="updateFitRange(${g.id}, 'fitTo', this.value)"
+             title="Kun punkter med x ≤ denne værdi bruges i regression (tomt = ingen øvre grænse)">
+    </div>
+  `;
+}
+
+/* Returnerer true hvis punktet (x) ligger inden for grafens fit-interval.
+   Tomme grænser fortolkes som ingen begrænsning på den side. */
+function inFitRange(g, x) {
+  if (g.fitFrom != null && x < g.fitFrom) return false;
+  if (g.fitTo != null && x > g.fitTo) return false;
+  return true;
+}
+
+/* "Tegn afledet" — opretter en formel-kolonne med diff(ySym, xSym) og en ny
+   graf der viser den. Smart til at gå fra sted-graf til hastighedsgraf eller
+   fra hastighed til acceleration.
+
+   Symbolet for den nye kolonne dannes ved at sætte 'd' foran y-symbolet og
+   '_d' efter x-symbolet, fx s(t) → ds_dt. Hvis det allerede findes (brugeren
+   har trykket før), genbruger vi den eksisterende kolonne. */
+function addDerivativeGraph(graphId) {
+  const g = state.graphs.find(g => g.id === graphId);
+  if (!g) return;
+  const xSym = g.xSym;
+  const ySym = g.ySym;
+  if (!xSym || !ySym) {
+    alert('Vælg gyldige akser først.');
+    return;
+  }
+
+  pushUndo();
+
+  // Foreslå et nyt symbolnavn. Hvis det er taget men IKKE er en diff af
+  // præcis disse to kolonner, så generér variant med suffiks.
+  let derivSym = `d${ySym}_d${xSym}`;
+  const wantedFormula = `diff(${ySym}, ${xSym})`;
+  const existing = state.columns.find(c =>
+    c.type === 'calc' && c.formula && String(c.formula).trim() === wantedFormula
+  );
+  if (existing) {
+    derivSym = existing.symbol;
+  } else {
+    let suffix = 2;
+    while (state.columns.some(c => c.symbol === derivSym)) {
+      derivSym = `d${ySym}_d${xSym}_${suffix}`;
+      suffix++;
+    }
+    // Beregn en passende enhed: y-enhed / x-enhed
+    const xCol = state.columns.find(c => c.symbol === xSym);
+    const yCol = state.columns.find(c => c.symbol === ySym);
+    let derivUnit = '';
+    if (yCol && xCol && yCol.unit && xCol.unit) {
+      derivUnit = `${yCol.unit}/${xCol.unit}`;
+    }
+    state.columns.push({
+      type: 'calc',
+      symbol: derivSym,
+      unit: derivUnit,
+      formula: wantedFormula
+    });
+  }
+
+  // Tilføj en ny graf med xSym på x-aksen og derivSym på y-aksen.
+  // Hvis der allerede findes en sådan graf, lad være med at duplikere.
+  const dup = state.graphs.find(gg => gg.xSym === xSym && gg.ySym === derivSym);
+  if (!dup) {
+    state.graphs.push({
+      id: state._graphIdCounter++,
+      xSym,
+      ySym: derivSym,
+      regType: 'none'
+    });
+  }
+  render();
+}
+
+/* Beregn tangentens hældning i punktet x = x0.
+   Hvis predict er givet (fit-funktion), bruges numerisk afledning af den.
+   Ellers bruges central difference på dataene. Returnerer {slope, y0} eller null. */
+function computeTangent(x0, predict, dataPoints) {
+  if (predict) {
+    // Numerisk afledning af fit-funktionen — central difference med adaptiv step
+    // h ≈ sqrt(epsilon) * max(|x|, 1) er den klassiske optimale balance
+    const h = Math.max(Math.abs(x0), 1) * 1e-5;
+    const y0 = predict(x0);
+    const yPlus = predict(x0 + h);
+    const yMinus = predict(x0 - h);
+    if (!isFinite(y0) || !isFinite(yPlus) || !isFinite(yMinus)) return null;
+    const slope = (yPlus - yMinus) / (2 * h);
+    return { slope, y0 };
+  }
+  // Ingen fit — brug central difference på datapunkterne.
+  // Sortér punkter efter x, find de to nærmeste, og beregn hældning.
+  if (!dataPoints || dataPoints.length < 2) return null;
+  const sorted = dataPoints.slice().sort((p1, p2) => p1.x - p2.x);
+
+  // Hvis x0 er præcis et datapunkt, brug central difference omkring det
+  for (let i = 0; i < sorted.length; i++) {
+    if (Math.abs(sorted[i].x - x0) < 1e-9) {
+      if (i === 0) {
+        // Forward difference
+        const dx = sorted[1].x - sorted[0].x;
+        return { slope: (sorted[1].y - sorted[0].y) / dx, y0: sorted[i].y };
+      } else if (i === sorted.length - 1) {
+        // Backward difference
+        const dx = sorted[i].x - sorted[i-1].x;
+        return { slope: (sorted[i].y - sorted[i-1].y) / dx, y0: sorted[i].y };
+      } else {
+        // Central difference
+        const dx = sorted[i+1].x - sorted[i-1].x;
+        return { slope: (sorted[i+1].y - sorted[i-1].y) / dx, y0: sorted[i].y };
+      }
+    }
+  }
+
+  // x0 mellem to punkter — find dem og interpolér både y0 og brug differensen
+  // mellem de to omkringliggende intervaller
+  if (x0 < sorted[0].x || x0 > sorted[sorted.length - 1].x) {
+    // Udenfor data-området — ekstrapolér med endepunkterne (mindre pålideligt)
+    return null;
+  }
+  let i0 = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (x0 >= sorted[i].x && x0 <= sorted[i+1].x) { i0 = i; break; }
+  }
+  // Lineær interpolation for y0
+  const t = (x0 - sorted[i0].x) / (sorted[i0+1].x - sorted[i0].x);
+  const y0 = sorted[i0].y + t * (sorted[i0+1].y - sorted[i0].y);
+  // Hældning er bare hældningen af det segment punktet ligger i
+  const slope = (sorted[i0+1].y - sorted[i0].y) / (sorted[i0+1].x - sorted[i0].x);
+  return { slope, y0 };
+}
+
 function onRegTypeChange(id, value) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   g.regType = value;
@@ -2496,12 +3471,14 @@ function renderCustomRegEditor(g) {
 }
 
 function updateCustomExpr(id, value) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (g) g.customExpr = value;
   render();
 }
 
 function updateCustomParam(id, name, value) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   if (!g.customParams) g.customParams = {};
@@ -2510,6 +3487,7 @@ function updateCustomParam(id, name, value) {
 }
 
 function addCustomParam(id) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   if (!g.customParams) g.customParams = {};
@@ -2526,6 +3504,7 @@ function addCustomParam(id) {
 }
 
 function removeCustomParam(id, name) {
+  pushUndo();
   const g = state.graphs.find(g => g.id === id);
   if (!g || !g.customParams) return;
   delete g.customParams[name];
@@ -2542,16 +3521,84 @@ async function copyChart(id, which) {
   }
 
   const sourceCanvas = insts[which].canvas;
+  const sourceW = sourceCanvas.width;
+  const sourceH = sourceCanvas.height;
 
-  // Lav et nyt canvas med hvid baggrund (Chart.js's canvas er transparent,
-  // hvilket ser dårligt ud i Word/Pages som har lyse baggrunde)
+  // Find graf-state for tekst-info
+  const g = state.graphs.find(gr => gr.id === id);
+
+  // Forbered tekst-linjer som skal under grafen (kun for hovedgraf med fit)
+  const textLines = [];
+  if (which === 'main' && g) {
+    const xCol = state.columns.find(c => c.symbol === g.xSym);
+    const yCol = state.columns.find(c => c.symbol === g.ySym);
+    // Hent regression-info fra DOM (det er allerede beregnet og vist der)
+    const resultBox = document.getElementById(`result-${g.id}`);
+    if (resultBox && g.regType !== 'none') {
+      // Læs formel
+      const formulaEl = resultBox.querySelector('.formula');
+      if (formulaEl) {
+        textLines.push({ text: htmlToCanvasText(formulaEl), color: '#993C1D', font: '600 16px Helvetica, Arial, sans-serif' });
+      }
+      // Læs parametre (alle direkte div-børn der ikke er .formula eller .rmse)
+      const paramTexts = [];
+      Array.from(resultBox.children).forEach(child => {
+        if (child.tagName === 'DIV' && !child.classList.contains('formula') && !child.classList.contains('rmse')) {
+          const t = child.textContent.trim();
+          if (t) paramTexts.push(t);
+        }
+      });
+      if (paramTexts.length > 0) {
+        textLines.push({ text: paramTexts.join('   ·   '), color: '#2a2a2a', font: '14px Helvetica, Arial, sans-serif' });
+      }
+      // RMSE
+      const rmseEl = resultBox.querySelector('.rmse');
+      if (rmseEl) {
+        textLines.push({ text: rmseEl.textContent.trim(), color: '#6b6b6b', font: '13px Helvetica, Arial, sans-serif' });
+      }
+    }
+  }
+
+  // Skala-faktor: Chart.js renderer ofte til 2x på Retina-skærme.
+  // Vi bruger sourceCanvas.width / CSS-bredde til at finde devicePixelRatio.
+  const cssWidth = sourceCanvas.getBoundingClientRect().width;
+  const fontScale = (cssWidth > 0 && isFinite(sourceW / cssWidth)) ? sourceW / cssWidth : 1;
+
+  // Beregn nyt canvas-størrelse i SOURCE-pixels (samme skala som grafen)
+  const lineHeight = Math.round(26 * fontScale);
+  const topPadding = Math.round(14 * fontScale);
+  const bottomPadding = Math.round(14 * fontScale);
+  const leftPad = Math.round(16 * fontScale);
+  const extraHeight = textLines.length > 0
+    ? topPadding + textLines.length * lineHeight + bottomPadding
+    : 0;
+
   const canvas = document.createElement('canvas');
-  canvas.width = sourceCanvas.width;
-  canvas.height = sourceCanvas.height;
+  canvas.width = sourceW;
+  canvas.height = sourceH + extraHeight;
   const ctx = canvas.getContext('2d');
+
+  // Hvid baggrund
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Tegn original graf i toppen, præcis 1:1 (ingen strækning)
   ctx.drawImage(sourceCanvas, 0, 0);
+
+  // Tegn tekst-linjer under grafen
+  if (textLines.length > 0) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let y = sourceH + topPadding;
+    textLines.forEach((line) => {
+      // Skalér font-størrelsen
+      const scaledFont = line.font.replace(/(\d+)px/, (m, n) => Math.round(parseInt(n) * fontScale) + 'px');
+      ctx.font = scaledFont;
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, leftPad, y);
+      y += lineHeight;
+    });
+  }
 
   canvas.toBlob(async (blob) => {
     if (!blob) {
@@ -2576,6 +3623,30 @@ async function copyChart(id, which) {
       showToast('Udklipsholder ikke tilgængelig — billedet er downloadet');
     }
   }, 'image/png');
+}
+
+/* Konvertér HTML-element til en plain-text-streng der ser pænt ud på canvas.
+   <sup>x</sup> bliver til Unicode hævede tegn hvor muligt. */
+function htmlToCanvasText(htmlEl) {
+  let out = '';
+  const supMap = {
+    '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
+    '-':'⁻','+':'⁺','.':'·',',':'·','·':'·','x':'ˣ','/':'ᐟ','(':'⁽',')':'⁾'
+  };
+  function nodeText(node) {
+    if (node.nodeType === 3) { // Text
+      out += node.textContent;
+    } else if (node.nodeType === 1 && node.tagName === 'SUP') {
+      // Konvertér til Unicode hævede tegn
+      const t = node.textContent;
+      for (const c of t) out += (supMap[c] || c);
+    } else if (node.nodeType === 1) {
+      // Andre elementer: rekursivt
+      node.childNodes.forEach(nodeText);
+    }
+  }
+  htmlEl.childNodes.forEach(nodeText);
+  return out;
 }
 
 /* Lille toast-besked nederst */
@@ -2656,6 +3727,157 @@ function drawArrowhead(ctx, x, y, dir, size) {
   ctx.closePath();
   ctx.fill();
 }
+
+/* Chart.js-plugin der skygger integral-intervallet under fit-linjen (eller dataene
+   hvis intet fit) mellem x = integralFrom og x = integralTo. Aktiveres når 
+   chart.$integralOptions er sat. */
+const integralShadePlugin = {
+  id: 'integralShade',
+  beforeDatasetsDraw(chart) {
+    const opts = chart.$integralOptions;
+    if (!opts) return;
+    const { from, to, predict, dataPoints } = opts;
+    if (!isFinite(from) || !isFinite(to) || from === to) return;
+    const a = Math.min(from, to);
+    const b = Math.max(from, to);
+
+    const { ctx, chartArea, scales } = chart;
+    const { left, right, top, bottom } = chartArea;
+    const xScale = scales.x;
+    const yScale = scales.y;
+    const y0Pixel = (yScale.min <= 0 && yScale.max >= 0)
+      ? yScale.getPixelForValue(0)
+      : yScale.getPixelForValue(yScale.min);
+
+    ctx.save();
+    // Clip til chart-arealet så skyggen ikke går udenfor
+    ctx.beginPath();
+    ctx.rect(left, top, right - left, bottom - top);
+    ctx.clip();
+
+    ctx.fillStyle = 'rgba(153, 60, 29, 0.12)';
+    ctx.strokeStyle = 'rgba(153, 60, 29, 0.5)';
+    ctx.lineWidth = 1;
+
+    // Tegn fyldt område: fra (a, 0) op til kurven, hen til (b, 0)
+    const steps = 200;
+    ctx.beginPath();
+    ctx.moveTo(xScale.getPixelForValue(a), y0Pixel);
+
+    if (predict) {
+      // Brug fit-funktionen til at tegne pænt
+      for (let i = 0; i <= steps; i++) {
+        const x = a + (b - a) * i / steps;
+        const y = predict(x);
+        if (isFinite(y)) {
+          ctx.lineTo(xScale.getPixelForValue(x), yScale.getPixelForValue(y));
+        }
+      }
+    } else if (dataPoints && dataPoints.length > 0) {
+      // Brug datapunkter med lineær interpolation
+      const sorted = dataPoints.slice().sort((p1, p2) => p1.x - p2.x);
+      function interp(x) {
+        if (x <= sorted[0].x) return sorted[0].y;
+        if (x >= sorted[sorted.length - 1].x) return sorted[sorted.length - 1].y;
+        for (let i = 0; i < sorted.length - 1; i++) {
+          if (x >= sorted[i].x && x <= sorted[i+1].x) {
+            const t = (x - sorted[i].x) / (sorted[i+1].x - sorted[i].x);
+            return sorted[i].y + t * (sorted[i+1].y - sorted[i].y);
+          }
+        }
+        return NaN;
+      }
+      // Start ved a
+      ctx.lineTo(xScale.getPixelForValue(a), yScale.getPixelForValue(interp(a)));
+      // Gå gennem alle datapunkter i intervallet
+      for (const p of sorted) {
+        if (p.x > a && p.x < b) {
+          ctx.lineTo(xScale.getPixelForValue(p.x), yScale.getPixelForValue(p.y));
+        }
+      }
+      // Slut ved b
+      ctx.lineTo(xScale.getPixelForValue(b), yScale.getPixelForValue(interp(b)));
+    }
+
+    ctx.lineTo(xScale.getPixelForValue(b), y0Pixel);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tegn også lodrette stiplede linjer ved intervallets grænser
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xScale.getPixelForValue(a), top);
+    ctx.lineTo(xScale.getPixelForValue(a), bottom);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(xScale.getPixelForValue(b), top);
+    ctx.lineTo(xScale.getPixelForValue(b), bottom);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+};
+
+/* Tangent-plugin: tegner en kort tangentlinje gennem (x0, y0) med given hældning,
+   plus et tydeligt punkt-marker. Aktiveres når chart.$tangentOptions er sat. */
+const tangentPlugin = {
+  id: 'tangent',
+  afterDatasetsDraw(chart) {
+    const opts = chart.$tangentOptions;
+    if (!opts) return;
+    const { x0, y0, slope } = opts;
+    if (!isFinite(x0) || !isFinite(y0) || !isFinite(slope)) return;
+
+    const { ctx, chartArea, scales } = chart;
+    const { left, right, top, bottom } = chartArea;
+    const xScale = scales.x;
+    const yScale = scales.y;
+
+    // Tangentens længde: 20% af x-aksens visning til hver side af punktet
+    const xRange = xScale.max - xScale.min;
+    const halfLen = xRange * 0.20;
+    const xA = x0 - halfLen;
+    const xB = x0 + halfLen;
+    const yA = y0 + slope * (xA - x0);
+    const yB = y0 + slope * (xB - x0);
+
+    const pxA = xScale.getPixelForValue(xA);
+    const pyA = yScale.getPixelForValue(yA);
+    const pxB = xScale.getPixelForValue(xB);
+    const pyB = yScale.getPixelForValue(yB);
+    const px0 = xScale.getPixelForValue(x0);
+    const py0 = yScale.getPixelForValue(y0);
+
+    ctx.save();
+    // Clip til chart-arealet så tangenten ikke går udenfor
+    ctx.beginPath();
+    ctx.rect(left, top, right - left, bottom - top);
+    ctx.clip();
+
+    // Tegn selve tangentlinjen
+    ctx.strokeStyle = '#993C1D';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(pxA, pyA);
+    ctx.lineTo(pxB, pyB);
+    ctx.stroke();
+
+    // Tegn punkt-marker som en lille fyldt cirkel med ring
+    ctx.fillStyle = '#993C1D';
+    ctx.beginPath();
+    ctx.arc(px0, py0, 5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(px0, py0, 5, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+};
 
 /* Beregn pæn min/max for en akse med en lille luft-buffer.
    - padFrac: hvor meget luft som procent af data-intervallet (typisk 0.08 = 8%)
@@ -2754,7 +3976,14 @@ function renderGraphs() {
                onchange="updateAxisRange(${g.id}, 'yMax', this.value)"
                title="Maksimum på y-aksen (tomt = auto)">
         <button class="small" onclick="resetAxisRange(${g.id})" title="Nulstil til automatisk skala">Auto</button>
+        <button class="small" onclick="toggleIntegral(${g.id})" title="Vis integral i et interval">📐 ${g.showIntegral ? 'Skjul' : 'Vis'} integral</button>
+        <button class="small" onclick="toggleTangent(${g.id})" title="Vis tangent i et punkt">📏 ${g.showTangent ? 'Skjul' : 'Vis'} tangent</button>
+        <button class="small" onclick="toggleFitRange(${g.id})" title="Begræns regression til et udsnit af x-aksen">🎯 ${g.showFitRange ? 'Skjul' : 'Vis'} fit-interval</button>
+        <button class="small" onclick="addDerivativeGraph(${g.id})" title="Opret en kolonne med den numeriske afledede og en ny graf, fx hastighed fra sted">📈 Tegn afledet</button>
       </div>
+      ${g.showIntegral ? renderIntegralBox(g) : ''}
+      ${g.showTangent ? renderTangentBox(g) : ''}
+      ${g.showFitRange ? renderFitRangeBox(g) : ''}
       ${g.regType === 'custom' ? renderCustomRegEditor(g) : ''}
       <div class="graph-charts">
         <div>
@@ -2791,21 +4020,32 @@ function buildGraph(g) {
     return;
   }
 
-  // Indsaml data fra inkluderede rækker
+  // Indsaml data fra inkluderede rækker.
+  // - allPoints: alle punkter med endelige x og y (også de eksluderede; til plot)
+  // - usedPoints: punkter der er inkluderede via checkbox; tegnes som blå punkter
+  // - fitPoints: usedPoints der OGSÅ er inden for fit-intervallet (hvis aktivt);
+  //   det er den delmængde regressionen kører på.
   const allPoints = [];
   const usedPoints = [];
+  const fitPoints = [];
+  const fitRangeActive = !!g.showFitRange && (g.fitFrom != null || g.fitTo != null);
   state.rows.forEach((row, idx) => {
     const ctx = rowContext(idx);
     const x = ctx[g.xSym];
     const y = ctx[g.ySym];
     if (isFinite(x) && isFinite(y)) {
-      allPoints.push({ x, y, included: row.included });
-      if (row.included) usedPoints.push({ x, y });
+      const inRange = !fitRangeActive || inFitRange(g, x);
+      allPoints.push({ x, y, included: row.included, inFitRange: inRange });
+      if (row.included) {
+        usedPoints.push({ x, y, inFitRange: inRange });
+        if (inRange) fitPoints.push({ x, y });
+      }
     }
   });
 
-  const xs = usedPoints.map(p => p.x);
-  const ys = usedPoints.map(p => p.y);
+  // Regressionen kører på fitPoints (delmængde af usedPoints).
+  const xs = fitPoints.map(p => p.x);
+  const ys = fitPoints.map(p => p.y);
 
   let reg = null;
   let regErr = null;
@@ -2827,27 +4067,38 @@ function buildGraph(g) {
   const xTitle = formatColHeader(xCol);
   const yTitle = formatColHeader(yCol);
 
-  // Generer fit-linje
+  // Generer fit-linje. Hvis fit-interval er aktivt tegnes fittet primært
+  // inden for intervallet, men vi udvider en smule så det er tydeligt at
+  // kurven slutter ved fit-grænserne.
   let fitData = [];
   let residuals = [];
   let rmseVal = NaN;
   if (reg) {
-    const minX = Math.min(...allPoints.map(p => p.x));
-    const maxX = Math.max(...allPoints.map(p => p.x));
-    const range = maxX - minX;
+    // Grænserne for hvor fit-kurven tegnes:
+    //   - Uden fit-interval: hele datas x-spænd (med lidt luft)
+    //   - Med fit-interval: kun det aktive interval (klampet til data)
+    let plotMinX, plotMaxX;
+    if (fitRangeActive && fitPoints.length > 0) {
+      plotMinX = Math.min(...fitPoints.map(p => p.x));
+      plotMaxX = Math.max(...fitPoints.map(p => p.x));
+    } else {
+      plotMinX = Math.min(...allPoints.map(p => p.x));
+      plotMaxX = Math.max(...allPoints.map(p => p.x));
+    }
+    const range = plotMaxX - plotMinX;
     const steps = 100;
     // For at få glat kurve, brug 100 punkter, men hvis regression typen er proportionalitet/lineær, så er 2 punkter nok
     if (g.regType === 'prop' || g.regType === 'linear') {
-      const x0 = g.regType === 'prop' ? Math.min(0, minX) : minX - 0.05 * range;
-      const x1 = maxX + 0.05 * range;
+      const x0 = g.regType === 'prop' ? Math.min(0, plotMinX) : plotMinX - 0.05 * range;
+      const x1 = plotMaxX + 0.05 * range;
       fitData = [
         { x: x0, y: reg.predict(x0) },
         { x: x1, y: reg.predict(x1) }
       ];
     } else {
       // Glat kurve
-      const x0 = minX - 0.02 * range;
-      const x1 = maxX + 0.02 * range;
+      const x0 = plotMinX - 0.02 * range;
+      const x1 = plotMaxX + 0.02 * range;
       for (let i = 0; i <= steps; i++) {
         const x = x0 + (x1 - x0) * i / steps;
         const y = reg.predict(x);
@@ -2856,7 +4107,12 @@ function buildGraph(g) {
     }
 
     // Residualer for inkluderede punkter
-    residuals = usedPoints.map(p => ({ x: p.x, y: p.y - reg.predict(p.x) }));
+    // Residualer for de punkter regressionen faktisk hviler på.
+    // Med fit-interval aktivt giver det mening kun at vise residualer for
+    // fit-punkterne — ellers vil store afvigelser uden for fit-intervallet
+    // dominere y-aksen og skjule den interessante struktur i fit-området.
+    const residualSource = fitRangeActive ? fitPoints : usedPoints;
+    residuals = residualSource.map(p => ({ x: p.x, y: p.y - reg.predict(p.x) }));
     rmseVal = rmse(reg.predict, xs, ys);
   }
 
@@ -2869,20 +4125,69 @@ function buildGraph(g) {
     for (const [pName, pVal] of Object.entries(reg.params)) {
       paramHTML += `<div>${escHtml(pName)} = ${formatNum(pVal, 4)}</div>`;
     }
+    // Antalsbeskrivelse: hvis fit-interval er aktivt, vis både fit-antallet
+    // og det totale antal inkluderede, så det er gennemskueligt hvor mange
+    // punkter regressionen reelt hviler på.
+    const countStr = fitRangeActive && usedPoints.length !== xs.length
+      ? `${xs.length} af ${usedPoints.length} punkter i fit-interval`
+      : `${xs.length} inkluderede punkter`;
     resultBox.innerHTML = `
       <div class="formula">${formula}</div>
       ${paramHTML}
-      <div class="rmse">RMSE = ${formatNum(rmseVal, 4)}${yUnit} &nbsp;·&nbsp; ${xs.length} inkluderede punkter</div>
+      <div class="rmse">RMSE = ${formatNum(rmseVal, 4)}${yUnit} &nbsp;·&nbsp; ${countStr}</div>
     `;
   } else if (g.regType === 'none') {
-    resultBox.innerHTML = `<div style="color: var(--muted); font-size: 13px;">${xs.length} inkluderede punkter. Vælg en regressionstype i dropdown'en for at lave en fit.</div>`;
+    const countStr = fitRangeActive && usedPoints.length !== xs.length
+      ? `${xs.length} af ${usedPoints.length} punkter i fit-interval`
+      : `${xs.length} inkluderede punkter`;
+    resultBox.innerHTML = `<div style="color: var(--muted); font-size: 13px;">${countStr}. Vælg en regressionstype i dropdown'en for at lave en fit.</div>`;
   } else {
     resultBox.innerHTML = `<span class="warn">${regErr || 'Regression mislykkedes.'}</span>`;
   }
 
-  // Datasæt: inkluderede + ekskluderede punkter visuelt forskellige
+  // Integral-resultat
+  if (g.showIntegral) {
+    const intResultEl = document.getElementById(`integral-result-${g.id}`);
+    if (intResultEl) {
+      // Find interval: brug brugerens værdier hvor sat, ellers data-omfanget
+      const dataXs = usedPoints.map(p => p.x);
+      const dataMin = dataXs.length > 0 ? Math.min(...dataXs) : 0;
+      const dataMax = dataXs.length > 0 ? Math.max(...dataXs) : 0;
+      const a = g.integralFrom != null ? g.integralFrom : dataMin;
+      const b = g.integralTo != null ? g.integralTo : dataMax;
+
+      const yUnit = (yCol.unit && xCol.unit) ? ` ${yCol.unit}·${xCol.unit}` : '';
+
+      if (usedPoints.length < 2) {
+        intResultEl.innerHTML = `<span class="integral-note">Mindst 2 punkter kræves.</span>`;
+      } else if (!isFinite(a) || !isFinite(b) || a === b) {
+        intResultEl.innerHTML = `<span class="integral-note">Indtast et gyldigt interval.</span>`;
+      } else {
+        const dataInt = computeDataIntegral(usedPoints.map(p => p.x), usedPoints.map(p => p.y), a, b);
+        let html = '';
+        if (dataInt != null && isFinite(dataInt)) {
+          html += `<span class="integral-value"><strong>data:</strong> ${formatNum(dataInt, 5)}${yUnit}</span>`;
+        }
+        if (reg && reg.predict) {
+          const fitInt = computeFitIntegral(reg.predict, a, b);
+          if (fitInt != null && isFinite(fitInt)) {
+            html += ` &nbsp; <span class="integral-value"><strong>fit:</strong> ${formatNum(fitInt, 5)}${yUnit}</span>`;
+          }
+        }
+        intResultEl.innerHTML = html || '<span class="integral-note">Kunne ikke beregne.</span>';
+      }
+    }
+  }
+
+  // Datasæt: inkluderede + ekskluderede punkter visuelt forskellige.
+  // Når fit-interval er aktivt, deles inkluderede yderligere i "fit-inkluderet"
+  // (mørk blå, indgår i regression) og "uden for fit-interval" (lys grå-blå,
+  // tegnes men indgår ikke). Det gør det øjeblikkeligt synligt for eleven
+  // hvilke punkter regressionen faktisk hviler på.
   const includedPts = allPoints.filter(p => p.included);
   const excludedPts = allPoints.filter(p => !p.included);
+  const inFitPts = fitRangeActive ? includedPts.filter(p => p.inFitRange) : includedPts;
+  const outFitPts = fitRangeActive ? includedPts.filter(p => !p.inFitRange) : [];
 
   // Beregn pæn akseskala med luft — inkludér både data og fit-linje
   const allXs = allPoints.map(p => p.x).concat(fitData.map(p => p.x));
@@ -2904,8 +4209,8 @@ function buildGraph(g) {
   if (mainCanvas) {
     const datasets = [
       {
-        label: 'Inkluderede',
-        data: includedPts.map(p => ({ x: p.x, y: p.y })),
+        label: fitRangeActive ? 'I fit-interval' : 'Inkluderede',
+        data: inFitPts.map(p => ({ x: p.x, y: p.y })),
         backgroundColor: '#378ADD',
         borderColor: '#378ADD',
         pointRadius: 4,
@@ -2913,6 +4218,17 @@ function buildGraph(g) {
         type: 'scatter'
       }
     ];
+    if (outFitPts.length > 0) {
+      datasets.push({
+        label: 'Uden for fit-interval',
+        data: outFitPts.map(p => ({ x: p.x, y: p.y })),
+        backgroundColor: '#bcd6ec',
+        borderColor: '#bcd6ec',
+        pointRadius: 4,
+        showLine: false,
+        type: 'scatter'
+      });
+    }
     if (excludedPts.length > 0) {
       datasets.push({
         label: 'Ekskluderede',
@@ -2952,8 +4268,7 @@ function buildGraph(g) {
           tooltip: {
             callbacks: {
               label: (item) => `(${formatNum(item.parsed.x)}; ${formatNum(item.parsed.y)})`
-            }
-          }
+            }          }
         },
         scales: {
           x: {
@@ -2971,8 +4286,59 @@ function buildGraph(g) {
           }
         }
       },
-      plugins: [axisArrowPlugin]
+      plugins: [axisArrowPlugin, integralShadePlugin, tangentPlugin]
     });
+
+    // Sæt integral-options hvis aktivt
+    if (g.showIntegral && usedPoints.length >= 2) {
+      const dataXs2 = usedPoints.map(p => p.x);
+      const dataMin = Math.min(...dataXs2);
+      const dataMax = Math.max(...dataXs2);
+      const a = g.integralFrom != null ? g.integralFrom : dataMin;
+      const b = g.integralTo != null ? g.integralTo : dataMax;
+      chartInstances[g.id].main.$integralOptions = {
+        from: a,
+        to: b,
+        predict: reg ? reg.predict : null,
+        dataPoints: usedPoints
+      };
+      chartInstances[g.id].main.update('none');
+    }
+
+    // Sæt tangent-options hvis aktivt og beregn resultat
+    if (g.showTangent) {
+      const tangentResultEl = document.getElementById(`tangent-result-${g.id}`);
+      if (g.tangentX == null || !isFinite(g.tangentX)) {
+        if (tangentResultEl) tangentResultEl.innerHTML = '<span class="tangent-note">Indtast en x-værdi for tangentpunktet.</span>';
+      } else {
+        const tangent = computeTangent(g.tangentX, reg ? reg.predict : null, usedPoints);
+        if (tangent && isFinite(tangent.slope) && isFinite(tangent.y0)) {
+          chartInstances[g.id].main.$tangentOptions = {
+            x0: g.tangentX,
+            y0: tangent.y0,
+            slope: tangent.slope
+          };
+          chartInstances[g.id].main.update('none');
+
+          // Vis hældning og evt. enhed
+          const xUnit = xCol.unit || '';
+          const yUnit = yCol.unit || '';
+          const slopeUnit = (yUnit && xUnit) ? ` ${yUnit}/${xUnit}` : '';
+          const source = reg ? 'fit-funktion' : 'data (lokal hældning)';
+          if (tangentResultEl) {
+            tangentResultEl.innerHTML =
+              `<span class="tangent-value"><strong>hældning:</strong> ${formatNum(tangent.slope, 5)}${slopeUnit}</span>` +
+              ` &nbsp; <span class="tangent-value">y(${formatNum(g.tangentX, 4)}) = ${formatNum(tangent.y0, 5)}${yUnit ? ' ' + yUnit : ''}</span>` +
+              ` &nbsp; <span class="tangent-note">(via ${source})</span>`;
+          }
+        } else {
+          chartInstances[g.id].main.$tangentOptions = null;
+          if (tangentResultEl) {
+            tangentResultEl.innerHTML = '<span class="tangent-note">Kunne ikke beregne tangenten. Vælg en regression, eller sørg for at x ligger inden for dataområdet.</span>';
+          }
+        }
+      }
+    }
   }
 
   // Residualplot
@@ -3037,10 +4403,13 @@ const STORAGE_KEY = 'fysik_dataanalyse_v1';
 const SAVED_KEY = 'fysik_dataanalyse_saved_v1';
 
 function snapshotState() {
-  return {
+  // Vigtigt: dyb kopi via JSON, så undo-stack ikke deler referencer med levende state.
+  // (autosave bruger samme funktion, men serialiserer alligevel umiddelbart efter.)
+  return JSON.parse(JSON.stringify({
     constants: state.constants,
     columns: state.columns,
     rows: state.rows,
+    showStats: state.showStats,
     graphs: state.graphs.map(g => ({
       id: g.id,
       xSym: g.xSym,
@@ -3049,9 +4418,17 @@ function snapshotState() {
       customExpr: g.customExpr,
       customParams: g.customParams,
       xMin: g.xMin, xMax: g.xMax,
-      yMin: g.yMin, yMax: g.yMax
+      yMin: g.yMin, yMax: g.yMax,
+      showIntegral: g.showIntegral,
+      integralFrom: g.integralFrom,
+      integralTo: g.integralTo,
+      showTangent: g.showTangent,
+      tangentX: g.tangentX,
+      showFitRange: g.showFitRange,
+      fitFrom: g.fitFrom,
+      fitTo: g.fitTo
     }))
-  };
+  }));
 }
 
 function restoreState(snap) {
@@ -3062,20 +4439,142 @@ function restoreState(snap) {
     included: r.included !== false,
     values: r.values || {}
   }));
-  state.graphs = (snap.graphs || []).map((g, i) => ({
-    id: ++state._graphIdCounter,
-    xSym: g.xSym || '',
-    ySym: g.ySym || '',
-    regType: g.regType || 'none',
-    customExpr: g.customExpr || '',
-    customParams: g.customParams || {},
-    xMin: g.xMin != null ? g.xMin : null,
-    xMax: g.xMax != null ? g.xMax : null,
-    yMin: g.yMin != null ? g.yMin : null,
-    yMax: g.yMax != null ? g.yMax : null
-  }));
+  state.showStats = !!snap.showStats;
+  // Gendan grafer med deres oprindelige id'er fra snapshot'et hvor muligt.
+  // Hvis et snapshot mangler id (gamle filer) eller har duplikater, generér nyt.
+  // _graphIdCounter sættes til max(eksisterende id) + 1 så fremtidige addGraph
+  // ikke kolliderer.
+  const usedIds = new Set();
+  state.graphs = (snap.graphs || []).map((g) => {
+    let id = (typeof g.id === 'number' && g.id > 0 && !usedIds.has(g.id)) ? g.id : null;
+    if (id == null) {
+      // Find næste ledige id
+      let candidate = 1;
+      while (usedIds.has(candidate)) candidate++;
+      id = candidate;
+    }
+    usedIds.add(id);
+    return {
+      id,
+      xSym: g.xSym || '',
+      ySym: g.ySym || '',
+      regType: g.regType || 'none',
+      customExpr: g.customExpr || '',
+      customParams: g.customParams || {},
+      xMin: g.xMin != null ? g.xMin : null,
+      xMax: g.xMax != null ? g.xMax : null,
+      yMin: g.yMin != null ? g.yMin : null,
+      yMax: g.yMax != null ? g.yMax : null,
+      showIntegral: !!g.showIntegral,
+      integralFrom: g.integralFrom != null ? g.integralFrom : null,
+      integralTo: g.integralTo != null ? g.integralTo : null,
+      showTangent: !!g.showTangent,
+      tangentX: g.tangentX != null ? g.tangentX : null,
+      showFitRange: !!g.showFitRange,
+      fitFrom: g.fitFrom != null ? g.fitFrom : null,
+      fitTo: g.fitTo != null ? g.fitTo : null
+    };
+  });
+  // Sørg for at counter er over alle eksisterende id'er
+  let maxId = 0;
+  for (const id of usedIds) if (id > maxId) maxId = id;
+  state._graphIdCounter = maxId + 1;
   render();
 }
+
+/* =====================================================================
+   FORTRYD / GENDAN (undo/redo)
+   ===================================================================== */
+
+// Stakke med serialiserede snapshots (strenge). Vi serialiserer fordi
+// snapshotState laver en dyb kopi i forvejen, men strenge er lettere at
+// sammenligne og fylder mindre.
+const undoStack = [];
+const redoStack = [];
+const UNDO_LIMIT = 100;
+
+// Sidst kendte tilstand fra app'ens perspektiv. Bruges til at afgøre om en
+// pushUndo() faktisk repræsenterer en ændring (undgår falske duplikater hvis
+// noget kalder pushUndo to gange uden mellemliggende mutation).
+let lastSnapshot = null;
+
+/* Kald pushUndo() FØR en mutation. Den gemmer den nuværende state og rydder
+   redo-stacken. Hvis state er identisk med sidste push, gør den intet. */
+function pushUndo() {
+  const snap = JSON.stringify(snapshotState());
+  if (snap === lastSnapshot) return;
+  undoStack.push(snap);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  lastSnapshot = snap;
+  updateUndoButtons();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const current = JSON.stringify(snapshotState());
+  const prev = undoStack.pop();
+  redoStack.push(current);
+  lastSnapshot = prev;
+  restoreState(JSON.parse(prev));
+  updateUndoButtons();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const current = JSON.stringify(snapshotState());
+  const next = redoStack.pop();
+  undoStack.push(current);
+  lastSnapshot = next;
+  restoreState(JSON.parse(next));
+  updateUndoButtons();
+}
+
+function updateUndoButtons() {
+  const u = document.getElementById('undo-btn');
+  const r = document.getElementById('redo-btn');
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
+/* Tastatur-genveje: Ctrl/Cmd+Z fortryder, Ctrl+Shift+Z eller Ctrl+Y gendanner.
+   Vi springer over hvis brugeren skriver i et tekstfelt — der vil browseren
+   selv håndtere undo lokalt i feltet, hvilket er det forventede. */
+function isInTextField(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'TEXTAREA') return true;
+  if (tag === 'INPUT') {
+    const t = (el.type || 'text').toLowerCase();
+    // Kun tekst-lignende inputs blokerer global undo; checkbox/file/button osv. gør ikke.
+    return ['text','search','url','email','tel','password','number'].includes(t);
+  }
+  return el.isContentEditable;
+}
+
+document.addEventListener('keydown', (ev) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const mod = isMac ? ev.metaKey : ev.ctrlKey;
+  if (!mod) return;
+  const key = ev.key.toLowerCase();
+  if (key === 'z' && !ev.shiftKey) {
+    if (isInTextField(ev.target)) return; // lad browseren håndtere
+    ev.preventDefault();
+    // Hvis et tekstfelt ER fokuseret men ikke target (sjældent), commit dets værdi
+    // ved at fjerne fokus, så blur-handleren får sit checkpoint før vi ruller.
+    if (document.activeElement && isInTextField(document.activeElement)) {
+      document.activeElement.blur();
+    }
+    undo();
+  } else if ((key === 'z' && ev.shiftKey) || key === 'y') {
+    if (isInTextField(ev.target)) return;
+    ev.preventDefault();
+    if (document.activeElement && isInTextField(document.activeElement)) {
+      document.activeElement.blur();
+    }
+    redo();
+  }
+});
 
 let autosaveTimer = null;
 function scheduleAutosave() {
@@ -3155,6 +4654,7 @@ function loadNamed(name) {
   const saved = getSavedExperiments();
   if (!saved[name]) return;
   if (!confirm(`Indlæs "${name}"? Din nuværende opsætning erstattes (men er stadig autosavet).`)) return;
+  pushUndo();
   restoreState(saved[name].data);
   closeModal('load-modal');
 }
@@ -3186,6 +4686,7 @@ function importJSON(ev) {
     try {
       const data = JSON.parse(e.target.result);
       if (!confirm('Indlæs fil? Din nuværende opsætning erstattes.')) return;
+      pushUndo();
       restoreState(data);
     } catch (err) {
       alert('Fejl ved indlæsning: ' + err.message);
@@ -3411,6 +4912,7 @@ function applyCSVImport() {
 
   if (!confirm(`Indlæs ${selectedCols.length} kolonner med ${csvImportData.rows.length} rækker?\n\nDe nuværende datakolonner og rækker erstattes (beregnede kolonner og grafer bevares).`)) return;
 
+  pushUndo();
   // Fjern eksisterende datakolonner men behold beregnede
   state.columns = state.columns.filter(c => c.type === 'calc');
 
@@ -3428,6 +4930,17 @@ function applyCSVImport() {
     }
     return { included: true, values };
   });
+
+  // Genknyt eksisterende grafer hvis deres akse-symboler peger på kolonner
+  // der ikke længere findes — typisk default-grafen med x og y der peger på
+  // nu-fjernede kolonner. Default mod de første to nye datakolonner.
+  const validSymbols = new Set(state.columns.map(c => c.symbol));
+  const newXDefault = dataColumns[0] ? dataColumns[0].symbol : '';
+  const newYDefault = dataColumns[1] ? dataColumns[1].symbol : newXDefault;
+  for (const g of state.graphs) {
+    if (!validSymbols.has(g.xSym)) g.xSym = newXDefault;
+    if (!validSymbols.has(g.ySym)) g.ySym = newYDefault;
+  }
 
   closeModal('csv-modal');
   csvImportData = null;
@@ -3458,6 +4971,7 @@ function resetToDefault() {
 
 function confirmReset() {
   if (!confirm('Nulstil alt? Tabellen starter forfra med x- og y-kolonner. Konstanter og grafer slettes.')) return;
+  pushUndo();
   resetToDefault();
   render();
 }
@@ -3480,6 +4994,11 @@ if (freshStart) {
   }
 }
 render();
+
+// Initialiser undo-systemet med startsnapshot — så den første mutation
+// snapshotter det reelle start-state og ikke en tom state.
+lastSnapshot = JSON.stringify(snapshotState());
+updateUndoButtons();
 
 // Byg symbol-palette indhold
 buildSymbolPalette();

@@ -3946,6 +3946,163 @@ function niceAxisRange(values, padFrac, includeZero) {
   };
 }
 
+/* Pan/zoom-plugin til hovedgrafer. Aktiveres kun når chart.options.$graphId er sat
+   (sættes på hovedgrafen — ikke residualplottet).
+   - Musehjul: zoom centreret om museposition.
+   - Venstre-træk: pan.
+   - Begge muterer state.graphs[id].xMin/Max/yMin/yMax direkte og opdaterer
+     chart.options + chart.update('none') for glat feedback. render() kaldes
+     debounced (~400 ms) for at opdatere akse-input-felterne.
+   - Undo: pushUndo() kaldes én gang ved første event i en gestus; debounce-
+     callback nulstiller flaget, så næste gestus igen gemmer et trin. */
+const panZoomPlugin = {
+  id: 'panZoom',
+  afterInit(chart) {
+    const graphId = chart.options.$graphId;
+    if (!graphId) return;
+
+    const canvas = chart.canvas;
+    let isDragging = false;
+    let dragStartPixel = null;
+    let dragStartRange = null;
+    let gestureUndoPushed = false;
+    let debounceTimer = null;
+
+    function getChartRange() {
+      return {
+        xMin: chart.scales.x.min,
+        xMax: chart.scales.x.max,
+        yMin: chart.scales.y.min,
+        yMax: chart.scales.y.max
+      };
+    }
+
+    function applyRange(r) {
+      const g = state.graphs.find(gg => gg.id === graphId);
+      if (!g) return;
+      g.xMin = r.xMin; g.xMax = r.xMax;
+      g.yMin = r.yMin; g.yMax = r.yMax;
+      chart.options.scales.x.min = r.xMin;
+      chart.options.scales.x.max = r.xMax;
+      chart.options.scales.y.min = r.yMin;
+      chart.options.scales.y.max = r.yMax;
+      chart.update('none');
+    }
+
+    function startGesture() {
+      if (!gestureUndoPushed) {
+        pushUndo();
+        gestureUndoPushed = true;
+      }
+    }
+
+    function scheduleRender() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        gestureUndoPushed = false;
+        render();
+      }, 400);
+    }
+
+    function onWheel(e) {
+      e.preventDefault();
+      if (!chart.chartArea || !chart.scales.x || !chart.scales.y) return;
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const { left, right, top, bottom } = chart.chartArea;
+      if (px < left || px > right || py < top || py > bottom) return;
+
+      startGesture();
+      const mx = chart.scales.x.getValueForPixel(px);
+      const my = chart.scales.y.getValueForPixel(py);
+      const range = getChartRange();
+      const factor = e.deltaY > 0 ? 1.15 : (1 / 1.15);
+
+      applyRange({
+        xMin: mx + (range.xMin - mx) * factor,
+        xMax: mx + (range.xMax - mx) * factor,
+        yMin: my + (range.yMin - my) * factor,
+        yMax: my + (range.yMax - my) * factor
+      });
+      scheduleRender();
+    }
+
+    function onMouseDown(e) {
+      if (e.button !== 0) return;
+      if (!chart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const { left, right, top, bottom } = chart.chartArea;
+      if (px < left || px > right || py < top || py > bottom) return;
+
+      isDragging = true;
+      dragStartPixel = { x: e.clientX, y: e.clientY };
+      dragStartRange = getChartRange();
+      startGesture();
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+
+    function onMouseMove(e) {
+      if (!isDragging || !dragStartPixel || !dragStartRange) return;
+      if (!chart.chartArea) return;
+      const { left, right, top, bottom } = chart.chartArea;
+      const chartW = right - left;
+      const chartH = bottom - top;
+      if (chartW === 0 || chartH === 0) return;
+
+      const dpx = e.clientX - dragStartPixel.x;
+      const dpy = e.clientY - dragStartPixel.y;
+      const xSpan = dragStartRange.xMax - dragStartRange.xMin;
+      const ySpan = dragStartRange.yMax - dragStartRange.yMin;
+      const dx = -dpx * xSpan / chartW;
+      const dy =  dpy * ySpan / chartH;
+
+      applyRange({
+        xMin: dragStartRange.xMin + dx,
+        xMax: dragStartRange.xMax + dx,
+        yMin: dragStartRange.yMin + dy,
+        yMax: dragStartRange.yMax + dy
+      });
+      scheduleRender();
+    }
+
+    function onMouseUp() {
+      if (!isDragging) return;
+      isDragging = false;
+      dragStartPixel = null;
+      dragStartRange = null;
+      canvas.style.cursor = 'grab';
+    }
+
+    function onMouseEnter() { if (!isDragging) canvas.style.cursor = 'grab'; }
+    function onMouseLeave() { if (!isDragging) canvas.style.cursor = ''; }
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mouseenter', onMouseEnter);
+    canvas.addEventListener('mouseleave', onMouseLeave);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    chart._panZoomCleanup = () => {
+      canvas.removeEventListener('wheel', onWheel);
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mouseenter', onMouseEnter);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      clearTimeout(debounceTimer);
+    };
+  },
+
+  destroy(chart) {
+    if (chart._panZoomCleanup) chart._panZoomCleanup();
+  }
+};
+
 let chartInstances = {}; // id -> { main, residual }
 
 function renderGraphs() {
@@ -4379,6 +4536,7 @@ function buildGraph(g) {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        $graphId: g.id,
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -4402,7 +4560,7 @@ function buildGraph(g) {
           }
         }
       },
-      plugins: [axisArrowPlugin, integralShadePlugin, tangentPlugin]
+      plugins: [axisArrowPlugin, integralShadePlugin, tangentPlugin, panZoomPlugin]
     });
 
     // Sæt integral-options hvis aktivt

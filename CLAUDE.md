@@ -7,7 +7,11 @@ Fysik dataanalyseværktøj til gymnasial undervisning (B-niveau primært, A-nive
 - **Én fil:** Al kode bor i `index.html`. Ingen separate `.js`- eller `.css`-filer, ingen bundler, intet build-step.
 - **Kun Chart.js fra CDN:** `https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js`. Ingen andre eksterne biblioteker.
 - **UI på dansk:** Alle knapper, labels, fejlbeskeder og hjælpetekster skal være på dansk.
-- **Syntakstjek efter hver ændring:** Kør `node --check index.html` og ret eventuelle fejl, før du rapporterer opgaven som løst.
+- **Syntakstjek efter hver ændring:** Udtræk JavaScript fra `<script>`-tags og tjek syntaks med:
+  ```
+  node -e "const h=require('fs').readFileSync('index.html','utf8');(h.match(/<script>([\s\S]*?)<\/script>/g)||[]).forEach((b,i)=>{try{new Function(b.replace(/<\/?script>/g,''))}catch(e){console.error('Blok',i+':',e.message);process.exit(1)}});console.log('Syntaks OK')"
+  ```
+  Ret eventuelle fejl inden du rapporterer opgaven som løst.
 
 ## Arkitektur
 

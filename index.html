@@ -1470,6 +1470,10 @@ function evalFormulaV2(formula, ctx) {
    Strukturen er: { 'kolonnesymbol': [v0, v1, v2, ...] } parallelt med state.rows.
    Cachen ryddes ved hvert render via clearComputedCache(). */
 let _diffCache = {};
+// Symboler for diff-kolonner der p.t. beregnes — bruges til at opdage cirkulære
+// referencer uden at fryse. Hvis colSym allerede er i settet når computeDiffColumn
+// kaldes, returneres et NaN-array med det samme (kontrolleret fejl).
+const _currentlyComputingDiff = new Set();
 
 function clearComputedCache() {
   _diffCache = {};
@@ -1495,42 +1499,27 @@ function parseColumnLevelFormula(formula) {
      berørte rækker. Vi sorterer IKKE rækkerne — det er brugerens ansvar at
      ordne dem; vi laver bare forskel mellem nabopositioner i tabellen.
      Det er den enkleste regel og passer til hvordan loggede måleserier ser ud. */
-function computeDiffColumn(ySym, xSym) {
+function computeDiffColumn(ySym, xSym, colSym) {
   const n = state.rows.length;
   const result = new Array(n).fill(NaN);
 
-  // Hent x og y for alle rækker. Vi læser fra rowContext for at fange
-  // beregnede kolonner — men diff må ikke afhænge cirkulært af sig selv.
-  // For at undgå problemer læser vi kun data-kolonner og konstanter her
-  // (ikke andre beregnede kolonner). Det dækker 99 % af brugen.
-  const xs = new Array(n);
-  const ys = new Array(n);
-  for (let i = 0; i < n; i++) {
-    const row = state.rows[i];
-    const xCol = state.columns.find(c => c.symbol === xSym);
-    const yCol = state.columns.find(c => c.symbol === ySym);
-    if (xCol && xCol.type === 'data') {
-      xs[i] = parseNum(row.values[xSym]);
-    } else {
-      // Tillad konstant eller anden beregnet kolonne: brug rowContext men
-      // pas på rekursion ved at midlertidigt skjule denne diff-kolonne.
-      xs[i] = parseNum(row.values[xSym]);
-      if (!isFinite(xs[i])) {
-        // Fallback: brug rowContext men accept at vi måske får NaN
-        const ctx = rowContextBasic(i);
-        xs[i] = ctx[xSym];
-      }
+  // Cirkulær reference: denne kolonne er allerede under beregning i et overliggende
+  // kald. Returner NaN-array med det samme — ingen frysning, eleven ser tankestreger.
+  if (_currentlyComputingDiff.has(colSym)) return result;
+  _currentlyComputingDiff.add(colSym);
+
+  try {
+    // Brug fuld rowContext så formel-kolonner (beregnede kolonner) evalueres korrekt.
+    // rowContext springer selv denne kolonne over hvis den er i _currentlyComputingDiff,
+    // så rekursion stoppes uden at sætte et forkert NaN-array i _diffCache.
+    const xs = new Array(n);
+    const ys = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const ctx = rowContext(i);
+      xs[i] = isFinite(ctx[xSym]) ? ctx[xSym] : NaN;
+      ys[i] = isFinite(ctx[ySym]) ? ctx[ySym] : NaN;
     }
-    if (yCol && yCol.type === 'data') {
-      ys[i] = parseNum(row.values[ySym]);
-    } else {
-      ys[i] = parseNum(row.values[ySym]);
-      if (!isFinite(ys[i])) {
-        const ctx = rowContextBasic(i);
-        ys[i] = ctx[ySym];
-      }
-    }
-  }
+
 
   for (let i = 0; i < n; i++) {
     if (!isFinite(xs[i]) || !isFinite(ys[i])) continue;
@@ -1558,6 +1547,9 @@ function computeDiffColumn(ySym, xSym) {
       continue;
     }
     if (dx !== 0 && isFinite(dx)) result[i] = dy / dx;
+    }
+  } finally {
+    _currentlyComputingDiff.delete(colSym);
   }
   return result;
 }
@@ -1598,9 +1590,9 @@ function rowContext(rowIdx) {
     if (col.type !== 'calc' || !col.symbol) continue;
     const kolop = parseColumnLevelFormula(col.formula);
     if (kolop) {
-      if (!_diffCache[col.symbol]) {
+      if (!_diffCache[col.symbol] && !_currentlyComputingDiff.has(col.symbol)) {
         if (kolop.kind === 'diff') {
-          _diffCache[col.symbol] = computeDiffColumn(kolop.ySym, kolop.xSym);
+          _diffCache[col.symbol] = computeDiffColumn(kolop.ySym, kolop.xSym, col.symbol);
         }
       }
       const arr = _diffCache[col.symbol];

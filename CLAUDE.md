@@ -28,3 +28,5 @@ Graf-objekter har felter: `id`, `xSym`, `ySym`, `regType`, `customExpr`, `custom
 
 ## Pædagogisk filosofi
 Generel arbejdshest — ingen forsøgsskabeloner. Eleverne tænker selv variabler og enheder igennem. Til særligt komplekse forsøg (fx Stefan-Boltzmann) laves separate specialapps.
+
+`diff()` differentierer bevidst altid på de rå datapunkter, ikke på en eventuel regression — også når en regression er beregnet. Det er et didaktisk valg: eleven skal se den faktiske numeriske afledede med dens støj. Lav ikke om på dette uden at spørge.

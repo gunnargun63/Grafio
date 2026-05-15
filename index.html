@@ -1201,6 +1201,7 @@ const REGRESSION_TYPES = [
   { id: 'inv2',     label_dropdown: 'Afstandskvadrat   y = a/x²',                              label_html: 'Afstandskvadrat  y = a/x²',                                            label_plain: 'Afstandskvadrat  y = a/x^2' },
   { id: 'inv2_off', label_dropdown: 'Afstandskvadrat med offset   y = a/(b+x)²',               label_html: 'Afstandskvadrat med offset  y = a/(b+x)²',                             label_plain: 'Afstandskvadrat med offset  y = a/(b+x)^2' },
   { id: 'sqrt',     label_dropdown: 'Kvadratrod   y = a·√x',                                   label_html: 'Kvadratrod  y = a·√x',  label_plain: 'Kvadratrod  y = a·sqrt(x)' },
+  { id: 'powint',   label_dropdown: 'Potens (heltal)   y = a·xⁿ',                             label_html: 'Potens (heltal)  y = a·x<sup>n</sup>',                                 label_plain: 'Potens (heltal)  y = a·xⁿ' },
   { id: 'custom',   label_dropdown: 'Brugerdefineret…',                                        label_html: 'Brugerdefineret',                                                      label_plain: 'Brugerdefineret' }
 ];
 
@@ -2680,6 +2681,23 @@ function regSqrt(xs, ys) {
   return { params: { a }, predict: x => a * Math.sqrt(x) };
 }
 
+// Potens med fast heltal-eksponent: y = a * x^n, n valgt af bruger
+// Linearisér: sæt u = x^n, derefter proportionalitet y = a*u
+function regPowInt(xs, ys, n) {
+  if (!Number.isInteger(n) || n === 0 || n < -5 || n > 5) return null;
+  const tx = [], ty = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (n < 0 && xs[i] === 0) continue; // x^n udefineret for n<0 og x=0
+    tx.push(Math.pow(xs[i], n));
+    ty.push(ys[i]);
+  }
+  if (tx.length < 2) return null;
+  const p = regProp(tx, ty);
+  if (!p) return null;
+  const a = p.params.a;
+  return { params: { a, n }, predict: x => a * Math.pow(x, n), pointCount: tx.length };
+}
+
 // Andengrad: y = a*x^2 + b*x + c (lineær i parametre, lukket form)
 function regQuad(xs, ys) {
   const n = xs.length;
@@ -3090,6 +3108,7 @@ function runRegression(type, xs, ys, graphState) {
     case 'inv2':     return regInv2(xs, ys);
     case 'inv2_off': return regInv2Off(xs, ys);
     case 'sqrt':     return regSqrt(xs, ys);
+    case 'powint':   return regPowInt(xs, ys, graphState ? (graphState.powIntN ?? 2) : 2);
     case 'custom':
       if (!graphState || !graphState.customExpr || !graphState.customParams) return null;
       return regCustom(xs, ys, graphState.customExpr, graphState.customParams);
@@ -3123,6 +3142,10 @@ function formatRegression(type, params, graphState) {
     case 'inv2':     return `y = ${a}/x²`;
     case 'inv2_off': return `y = ${a}/(x ${signNum(params.b)})²`;
     case 'sqrt':     return `y = ${a}·√x`;
+    case 'powint': {
+      const n = params.n;
+      return `y = ${a}·x<sup>${n}</sup>`;
+    }
     case 'custom':
       if (!graphState) return '';
       // Erstat hver parameter med dens fittede værdi i udtrykket (kun til visning)
@@ -3160,6 +3183,10 @@ function formatRegressionPlain(type, params, graphState) {
     case 'inv2':     return `y = ${a}/x²`;
     case 'inv2_off': return `y = ${a}/(x ${signNum(params.b)})²`;
     case 'sqrt':     return `y = ${a}·√x`;
+    case 'powint': {
+      const n = params.n;
+      return `y = ${a}·x${toSup(String(n))}`;
+    }
     case 'custom':
       if (!graphState) return '';
       return `y = ${graphState.customExpr || ''}`;
@@ -3594,11 +3621,29 @@ function onRegTypeChange(id, value) {
   const g = state.graphs.find(g => g.id === id);
   if (!g) return;
   g.regType = value;
+  if (value === 'powint' && g.powIntN == null) g.powIntN = 2;
   // Hvis brugerdefineret er valgt og ingen formel er sat endnu, lav et default
   if (value === 'custom' && (!g.customExpr || !g.customParams)) {
     g.customExpr = 'a*exp(-((x-b)/c)^2)';
     g.customParams = { a: '1', b: '0', c: '1' };
   }
+  render();
+}
+
+
+function updatePowIntN(id, rawVal) {
+  const g = state.graphs.find(g => g.id === id);
+  if (!g) return;
+  const n = parseInt(rawVal, 10);
+  const valid = [-5,-4,-3,-2,-1,1,2,3,4,5];
+  if (!valid.includes(n)) {
+    g._powIntError = `Ugyldig eksponent "${rawVal}". Tilladte heltal: -5 til -1 og 1 til 5.`;
+    render();
+    return;
+  }
+  pushUndo();
+  g._powIntError = null;
+  g.powIntN = n;
   render();
 }
 
@@ -4283,6 +4328,14 @@ function renderGraphs() {
             ${REGRESSION_TYPES.map(r => `<option value="${r.id}" ${r.id === g.regType ? 'selected' : ''}>${escHtml(r.label_dropdown)}</option>`).join('')}
           </select>
         </div>
+        ${g.regType === 'powint' ? `<div class="field">
+          <label>Eksponent n</label>
+          <input type="number" min="-5" max="5" step="1" value="${g.powIntN != null ? g.powIntN : 2}"
+                 style="width:62px;"
+                 onchange="updatePowIntN(${g.id}, this.value)"
+                 title="Heltal fra -5 til 5 (ikke 0)">
+          ${g._powIntError ? `<span class="warn" style="font-size:12px; margin-left:4px;">${escHtml(g._powIntError)}</span>` : '<span style="font-size:12px; color:var(--muted); margin-left:4px;">±1–±5</span>'}
+        </div>` : ''}
         <div style="margin-left:auto;">
           <button class="danger small" onclick="removeGraph(${g.id})">Fjern graf</button>
         </div>
@@ -4493,8 +4546,9 @@ function buildGraph(g) {
     const formula = formatRegression(g.regType, reg.params, g);
     const yUnit = yCol.unit ? ' ' + yCol.unit : '';
     let paramHTML = '';
-    // Vis fittede parametre
+    // Vis fittede parametre (for powint vises n ikke — det fremgår allerede af formlen)
     for (const [pName, pVal] of Object.entries(reg.params)) {
+      if (g.regType === 'powint' && pName === 'n') continue;
       paramHTML += `<div>${escHtml(pName)} = ${formatNum(pVal, 4)}</div>`;
     }
     // Antalsbeskrivelse: hvis fit-interval er aktivt, vis både fit-antallet
@@ -4503,10 +4557,14 @@ function buildGraph(g) {
     const countStr = fitRangeActive && usedPoints.length !== xs.length
       ? `${xs.length} af ${usedPoints.length} punkter i fit-interval`
       : `${xs.length} inkluderede punkter`;
+    const fewPtsNote = (g.regType === 'powint' && reg.pointCount != null && reg.pointCount < 3)
+      ? `<div style="color:var(--muted); font-size:12px;">Bemærk: kun ${reg.pointCount} gyldige datapunkter (x=0 sprunget over)</div>`
+      : '';
     resultBox.innerHTML = `
       <div class="formula">${formula}</div>
       ${paramHTML}
       <div class="rmse">RMSE = ${formatNum(rmseVal, 4)}${yUnit} &nbsp;·&nbsp; ${countStr}</div>
+      ${fewPtsNote}
     `;
   } else if (g.regType === 'none') {
     const countStr = fitRangeActive && usedPoints.length !== xs.length
@@ -4831,6 +4889,7 @@ function snapshotState() {
       regType: g.regType,
       customExpr: g.customExpr,
       customParams: g.customParams,
+      powIntN: g.powIntN,
       xMin: g.xMin, xMax: g.xMax,
       yMin: g.yMin, yMax: g.yMax,
       showIntegral: g.showIntegral,
@@ -4876,6 +4935,7 @@ function restoreState(snap) {
       regType: g.regType || 'none',
       customExpr: g.customExpr || '',
       customParams: g.customParams || {},
+      powIntN: g.powIntN != null ? g.powIntN : 2,
       xMin: g.xMin != null ? g.xMin : null,
       xMax: g.xMax != null ? g.xMax : null,
       yMin: g.yMin != null ? g.yMin : null,

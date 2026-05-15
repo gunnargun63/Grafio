@@ -22,6 +22,13 @@
     --green: #1D9E75;
     --brown: #993C1D;
     --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+    --surface: #ffffff;
+    --row-alt: #fafaf7;
+    --danger: #a04040;
+    --fit-bg: rgba(153,60,29,0.05);
+    --fit-border: rgba(153,60,29,0.20);
+    --chart-grid: #eeeeee;
+    --chart-text: #2a2a2a;
   }
 
   * { box-sizing: border-box; }
@@ -93,7 +100,7 @@
   button.primary:hover { background: #2c75c0; }
 
   button.danger {
-    color: #a04040;
+    color: var(--danger);
   }
 
   button.small {
@@ -118,7 +125,7 @@
     padding: 5px 8px;
     border: 1px solid var(--panel-border);
     border-radius: 3px;
-    background: white;
+    background: var(--surface);
   }
 
   .section {
@@ -208,7 +215,7 @@
     overflow-x: auto;
     border: 1px solid var(--panel-border);
     border-radius: 6px;
-    background: white;
+    background: var(--surface);
     box-shadow: var(--shadow);
   }
 
@@ -235,7 +242,7 @@
   th:last-child, td:last-child { border-right: none; }
 
   th {
-    background: #fafaf7;
+    background: var(--row-alt);
     padding: 6px 4px;
     font-weight: 600;
     font-size: 12px;
@@ -244,13 +251,13 @@
 
   th.data-header { background: var(--data-col); }
   th.calc-header { background: var(--calc-col); }
-  th.row-num { background: #fafaf7; width: 36px; min-width: 36px; color: var(--muted); font-weight: 400; }
-  th.action-col { width: 36px; min-width: 36px; background: #fafaf7; }
+  th.row-num { background: var(--row-alt); width: 36px; min-width: 36px; color: var(--muted); font-weight: 400; }
+  th.action-col { width: 36px; min-width: 36px; background: var(--row-alt); }
   td.row-num, td.action-cell { width: 36px; }
 
   /* Statistik-rækker nederst i tabellen */
   tr.stats-row td {
-    background: #fafaf7;
+    background: var(--row-alt);
     font-size: 12px;
     padding: 4px 4px;
     color: var(--text);
@@ -284,7 +291,7 @@
 
   .col-name-input:focus {
     outline: 1px solid var(--blue);
-    background: white;
+    background: var(--surface);
   }
 
   .col-formula {
@@ -319,7 +326,7 @@
   }
 
   .col-remove-x:hover {
-    color: #a04040;
+    color: var(--danger);
     background: rgba(160, 64, 64, 0.1);
   }
 
@@ -351,13 +358,13 @@
 
   td input.cell:focus {
     outline: 1px solid var(--blue);
-    background: white;
+    background: var(--surface);
   }
 
   td.data-cell { background: var(--data-col); }
-  td.calc-cell { background: var(--calc-col); color: #333; padding: 6px 4px; }
-  td.row-num { background: #fafaf7; color: var(--muted); font-size: 12px; padding: 6px 4px; }
-  td.action-cell { background: #fafaf7; }
+  td.calc-cell { background: var(--calc-col); color: var(--text); padding: 6px 4px; }
+  td.row-num { background: var(--row-alt); color: var(--muted); font-size: 12px; padding: 6px 4px; }
+  td.action-cell { background: var(--row-alt); }
 
   tr.excluded td.data-cell,
   tr.excluded td.calc-cell {
@@ -422,7 +429,7 @@
   }
 
   .formula-help code {
-    background: white;
+    background: var(--surface);
     padding: 1px 5px;
     border-radius: 3px;
     border: 1px solid var(--panel-border);
@@ -438,7 +445,7 @@
     top: 100%;
     left: 0;
     margin-top: 2px;
-    background: white;
+    background: var(--surface);
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.08);
@@ -482,7 +489,7 @@
     border-radius: 6px;
     padding: 16px;
     margin-bottom: 18px;
-    background: white;
+    background: var(--surface);
     box-shadow: var(--shadow);
   }
 
@@ -549,7 +556,7 @@
 
   .axis-input:focus {
     outline: 1px solid var(--blue);
-    background: white;
+    background: var(--surface);
   }
 
   /* Integral-boks (vises pr. graf under axis-controls hvis aktiveret) */
@@ -559,8 +566,8 @@
     gap: 6px;
     margin: 0 0 14px;
     padding: 8px 12px;
-    background: rgba(153, 60, 29, 0.05);
-    border: 1px solid rgba(153, 60, 29, 0.2);
+    background: var(--fit-bg);
+    border: 1px solid var(--fit-border);
     border-radius: 4px;
     font-size: 12px;
     flex-wrap: wrap;
@@ -591,8 +598,8 @@
     gap: 6px;
     margin: 0 0 14px;
     padding: 8px 12px;
-    background: rgba(153, 60, 29, 0.05);
-    border: 1px solid rgba(153, 60, 29, 0.2);
+    background: var(--fit-bg);
+    border: 1px solid var(--fit-border);
     border-radius: 4px;
     font-size: 12px;
     flex-wrap: wrap;
@@ -649,7 +656,7 @@
   }
 
   .result-box .warn {
-    color: #a04040;
+    color: var(--danger);
     font-size: 12px;
     margin-top: 4px;
   }
@@ -675,7 +682,7 @@
   .modal-bg.visible { display: flex; }
 
   .modal {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     padding: 24px;
     max-width: 500px;
@@ -786,7 +793,7 @@
     display: flex;
     gap: 4px;
     align-items: center;
-    background: white;
+    background: var(--surface);
     padding: 4px 6px;
     border-radius: 3px;
     border: 1px solid var(--panel-border);
@@ -812,7 +819,7 @@
     line-height: 1.5;
   }
   .custom-reg-hint code {
-    background: white;
+    background: var(--surface);
     padding: 1px 5px;
     border-radius: 3px;
     border: 1px solid var(--panel-border);
@@ -825,7 +832,7 @@
     top: 60px;
     right: 20px;
     width: 280px;
-    background: white;
+    background: var(--surface);
     border: 1px solid var(--panel-border);
     border-radius: 6px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.12);
@@ -892,12 +899,103 @@
     margin-top: 8px;
     line-height: 1.4;
   }
+
+  /* ── Mørk tilstand ──────────────────────────────────────────────── */
+  [data-theme="dark"] {
+    --bg: #1a1a1e;
+    --surface: #222229;
+    --panel: #27272f;
+    --row-alt: #1e1e25;
+    --panel-border: #3d3d48;
+    --text: #e4e4ec;
+    --muted: #9494a8;
+    --data-col: #1c3048;
+    --data-col-border: #2d4d70;
+    --calc-col: #27272f;
+    --calc-col-border: #3d3d48;
+    --const-col: #2e2614;
+    --const-col-border: #5a4828;
+    --blue: #5ba3f0;
+    --green: #33c48a;
+    --brown: #e07850;
+    --danger: #e05050;
+    --fit-bg: rgba(220,100,60,0.12);
+    --fit-border: rgba(220,100,60,0.30);
+    --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+    --chart-grid: #333340;
+    --chart-text: #b8b8cc;
+  }
+
+  [data-theme="dark"] button:hover { background: #32323c; }
+  [data-theme="dark"] button.primary:hover { background: #4a90d9; }
+
+  [data-theme="dark"] select,
+  [data-theme="dark"] input[type="text"] { color: var(--text); background: var(--surface); }
+
+  [data-theme="dark"] .autocomplete-item:hover,
+  [data-theme="dark"] .autocomplete-item.selected { background: var(--data-col); }
+
+  [data-theme="dark"] .col-remove-x:hover {
+    color: var(--danger);
+    background: rgba(224,80,80,0.12);
+  }
+
+  [data-theme="dark"] button.icon:hover { color: var(--danger); }
+
+  /* Inline-editors (kolonnenavn og dataceller) skal forblive transparente
+     så de viser kolonnetypen baggrund — ikke den generelle --surface. */
+  [data-theme="dark"] .col-name-input,
+  [data-theme="dark"] td input.cell { background: transparent; }
+
+  /* ── Header med tema-toggle ─────────────────────────────────────── */
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .theme-btn {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    margin-top: 4px;
+  }
+
+  .theme-btn:hover {
+    color: var(--text);
+    background: var(--panel);
+    border-color: var(--panel-border);
+  }
+
+  .theme-btn svg { display: block; }
+
+  /* I lys tilstand: vis måne-ikon (klik → skift til mørk).
+     I mørk tilstand: vis sol-ikon (klik → skift til lys). */
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  [data-theme="dark"] .icon-sun { display: block; }
+  [data-theme="dark"] .icon-moon { display: none; }
 </style>
 </head>
 <body>
 
-<h1>Grafio <span class="app-subtitle">— fysik dataanalyse</span></h1>
-<p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
+<div class="app-header">
+  <div>
+    <h1>Grafio <span class="app-subtitle">— fysik dataanalyse</span></h1>
+    <p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()" title="Skift til mørk/lys tilstand" aria-label="Skift tema">
+    <span class="icon-moon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+    <span class="icon-sun"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+  </button>
+</div>
 
 <div class="toolbar">
   <button id="undo-btn" onclick="undo()" disabled title="Fortryd seneste ændring (Ctrl+Z / ⌘+Z)">↶ Fortryd</button>
@@ -1060,6 +1158,12 @@
 </div>
 
 <script>
+// Sæt tema ALLERFØRST så siden ikke blinker fra lys til mørk ved load
+(function() {
+  if (localStorage.getItem('grafio_theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
 /* =====================================================================
    STATE
    ===================================================================== */
@@ -1099,6 +1203,38 @@ const REGRESSION_TYPES = [
   { id: 'sqrt',     label_dropdown: 'Kvadratrod   y = a·√x',                                   label_html: 'Kvadratrod  y = a·√x',  label_plain: 'Kvadratrod  y = a·sqrt(x)' },
   { id: 'custom',   label_dropdown: 'Brugerdefineret…',                                        label_html: 'Brugerdefineret',                                                      label_plain: 'Brugerdefineret' }
 ];
+
+/* =====================================================================
+   TEMA-HJÆLPERE
+   ===================================================================== */
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function chartThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  const get = v => s.getPropertyValue(v).trim();
+  return {
+    grid:    get('--chart-grid')  || '#eeeeee',
+    text:    get('--chart-text')  || '#2a2a2a',
+    blue:    get('--blue')        || '#378ADD',
+    green:   get('--green')       || '#1D9E75',
+    brown:   get('--brown')       || '#993C1D',
+    surface: get('--surface')     || '#ffffff'
+  };
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const goingDark = html.getAttribute('data-theme') !== 'dark';
+  html.setAttribute('data-theme', goingDark ? 'dark' : 'light');
+  localStorage.setItem('grafio_theme', goingDark ? 'dark' : 'light');
+  render();
+}
 
 /* =====================================================================
    NUMBER PARSING (komma eller punktum)
@@ -3717,8 +3853,9 @@ const axisArrowPlugin = {
     const margin = arrowSize + 2;
 
     ctx.save();
-    ctx.strokeStyle = '#666';
-    ctx.fillStyle = '#666';
+    const _arrowColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#666';
+    ctx.strokeStyle = _arrowColor;
+    ctx.fillStyle = _arrowColor;
     ctx.lineWidth = 1.2;
 
     // Tegn x-akse (horisontal linje ved y=0) hvis y=0 er i intervallet
@@ -3789,8 +3926,9 @@ const integralShadePlugin = {
     ctx.rect(left, top, right - left, bottom - top);
     ctx.clip();
 
-    ctx.fillStyle = 'rgba(153, 60, 29, 0.12)';
-    ctx.strokeStyle = 'rgba(153, 60, 29, 0.5)';
+    const _iBrown = getComputedStyle(document.documentElement).getPropertyValue('--brown').trim() || '#993C1D';
+    ctx.fillStyle = hexToRgba(_iBrown, 0.15);
+    ctx.strokeStyle = hexToRgba(_iBrown, 0.55);
     ctx.lineWidth = 1;
 
     // Tegn fyldt område: fra (a, 0) op til kurven, hen til (b, 0)
@@ -3890,7 +4028,10 @@ const tangentPlugin = {
     ctx.clip();
 
     // Tegn selve tangentlinjen
-    ctx.strokeStyle = '#993C1D';
+    const _css = getComputedStyle(document.documentElement);
+    const _tBrown = _css.getPropertyValue('--brown').trim() || '#993C1D';
+    const _tSurface = _css.getPropertyValue('--surface').trim() || '#ffffff';
+    ctx.strokeStyle = _tBrown;
     ctx.lineWidth = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -3899,11 +4040,11 @@ const tangentPlugin = {
     ctx.stroke();
 
     // Tegn punkt-marker som en lille fyldt cirkel med ring
-    ctx.fillStyle = '#993C1D';
+    ctx.fillStyle = _tBrown;
     ctx.beginPath();
     ctx.arc(px0, py0, 5, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = _tSurface;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(px0, py0, 5, 0, 2 * Math.PI);
@@ -4437,12 +4578,13 @@ function buildGraph(g) {
 
   const mainCanvas = document.getElementById(`chart-main-${g.id}`);
   if (mainCanvas) {
+    const cc = chartThemeColors();
     const datasets = [
       {
         label: fitRangeActive ? 'I fit-interval' : 'Inkluderede',
         data: inFitPts.map(p => ({ x: p.x, y: p.y })),
-        backgroundColor: '#378ADD',
-        borderColor: '#378ADD',
+        backgroundColor: cc.blue,
+        borderColor: cc.blue,
         pointRadius: 4,
         showLine: false,
         type: 'scatter'
@@ -4452,8 +4594,8 @@ function buildGraph(g) {
       datasets.push({
         label: 'Uden for fit-interval',
         data: outFitPts.map(p => ({ x: p.x, y: p.y })),
-        backgroundColor: '#bcd6ec',
-        borderColor: '#bcd6ec',
+        backgroundColor: hexToRgba(cc.blue, 0.38),
+        borderColor: hexToRgba(cc.blue, 0.38),
         pointRadius: 4,
         showLine: false,
         type: 'scatter'
@@ -4463,8 +4605,8 @@ function buildGraph(g) {
       datasets.push({
         label: 'Ekskluderede',
         data: excludedPts.map(p => ({ x: p.x, y: p.y })),
-        backgroundColor: '#ccc',
-        borderColor: '#ccc',
+        backgroundColor: '#888',
+        borderColor: '#888',
         pointRadius: 4,
         pointStyle: 'crossRot',
         showLine: false,
@@ -4475,8 +4617,8 @@ function buildGraph(g) {
       datasets.push({
         label: 'Fit',
         data: fitData,
-        borderColor: '#993C1D',
-        backgroundColor: 'rgba(153, 60, 29, 0)',
+        borderColor: cc.brown,
+        backgroundColor: 'transparent',
         borderWidth: 2,
         // Fuld linje i data-området — det er den primære fit-kurve
         pointRadius: 0,
@@ -4486,13 +4628,13 @@ function buildGraph(g) {
       });
     }
     if (fitExtrapData.length > 0) {
-      // Ekstrapolation: lysere rød og stiplet for at signalere
+      // Ekstrapolation: lysere og stiplet for at signalere
       // "uden for data — modellen er ikke valideret her"
       datasets.push({
         label: 'Fit (ekstrapoleret)',
         data: fitExtrapData,
-        borderColor: 'rgba(153, 60, 29, 0.45)',
-        backgroundColor: 'rgba(153, 60, 29, 0)',
+        borderColor: hexToRgba(cc.brown, 0.45),
+        backgroundColor: 'transparent',
         borderWidth: 2,
         borderDash: [4, 4],
         pointRadius: 0,
@@ -4511,8 +4653,8 @@ function buildGraph(g) {
       datasets.push({
         label: 'Forbindelse',
         data: connected.map(p => ({ x: p.x, y: p.y })),
-        borderColor: 'rgba(55, 138, 221, 0.55)',
-        backgroundColor: 'rgba(55, 138, 221, 0)',
+        borderColor: hexToRgba(cc.blue, 0.55),
+        backgroundColor: 'transparent',
         borderWidth: 1.5,
         pointRadius: 0,
         showLine: true,
@@ -4539,14 +4681,16 @@ function buildGraph(g) {
         scales: {
           x: {
             type: 'linear',
-            title: { display: true, text: xTitle, font: { size: 13 } },
-            grid: { color: '#eee' },
+            title: { display: true, text: xTitle, font: { size: 13 }, color: cc.text },
+            grid: { color: cc.grid },
+            ticks: { color: cc.text },
             min: xRange.min,
             max: xRange.max
           },
           y: {
-            title: { display: true, text: yTitle, font: { size: 13 } },
-            grid: { color: '#eee' },
+            title: { display: true, text: yTitle, font: { size: 13 }, color: cc.text },
+            grid: { color: cc.grid },
+            ticks: { color: cc.text },
             min: yRange.min,
             max: yRange.max
           }
@@ -4610,12 +4754,13 @@ function buildGraph(g) {
   // Residualplot
   const resCanvas = document.getElementById(`chart-res-${g.id}`);
   if (resCanvas) {
+    const rcc = chartThemeColors();
     const datasets = [
       {
         label: 'Residualer',
         data: residuals,
-        backgroundColor: '#1D9E75',
-        borderColor: '#1D9E75',
+        backgroundColor: rcc.green,
+        borderColor: rcc.green,
         pointRadius: 4,
         showLine: false
       }
@@ -4643,14 +4788,16 @@ function buildGraph(g) {
         scales: {
           x: {
             type: 'linear',
-            title: { display: true, text: xTitle, font: { size: 13 } },
-            grid: { color: '#eee' },
+            title: { display: true, text: xTitle, font: { size: 13 }, color: rcc.text },
+            grid: { color: rcc.grid },
+            ticks: { color: rcc.text },
             min: xRange.min,
             max: xRange.max
           },
           y: {
-            title: { display: true, text: 'Δ' + (yCol.symbol || 'y') + (yCol.unit ? ` (${yCol.unit})` : ''), font: { size: 13 } },
-            grid: { color: '#eee' },
+            title: { display: true, text: 'Δ' + (yCol.symbol || 'y') + (yCol.unit ? ` (${yCol.unit})` : ''), font: { size: 13 }, color: rcc.text },
+            grid: { color: rcc.grid },
+            ticks: { color: rcc.text },
             min: resYRange ? resYRange.min : undefined,
             max: resYRange ? resYRange.max : undefined
           }

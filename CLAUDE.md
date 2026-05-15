@@ -33,4 +33,11 @@ Generel arbejdshest — ingen forsøgsskabeloner. Eleverne tænker selv variable
 
 ## Kendte begrænsninger
 
-Pan/zoom på touchpad har let synlig rystelse ved meget langsomme scroll. Det er en accepteret begrænsning, ikke en bug. Flere optimeringsforsøg (render-eliminering, requestAnimationFrame-synkronisering, target-smoothing med lerp) har IKKE afhjulpet det — det er sandsynligvis en grundlæggende konsekvens af diskrete browser-events kombineret med en HTML-canvas-baseret graf. Tag ikke runde 4 før der er kommet ny indsigt eller elev-feedback der ændrer prioritet.
+Pan/zoom på touchpad har let synlig rystelse ved langsomme scroll på VISSE datasæt. Det ser ud til at være regressionstype-afhængigt: andengrad-fit ryster typisk ikke, mens proportionalitet og eksponentiel gør. Datasætstørrelse, beregnede vs. rå kolonner, akse-grænser, og synlighed af plugins er udelukket som årsager.
+
+Følgende optimeringsforsøg har IKKE afhjulpet det:
+- requestAnimationFrame-synkronisering
+- target-smoothing med lerp
+- eliminering af render() under gestus
+
+Det er en accepteret begrænsning, ikke en bug. Tag ikke en ny optimerings-runde før der er kommet (a) ny indsigt i hvorfor regressionstype påvirker det, eller (b) konkret elev-feedback der ændrer prioritet.

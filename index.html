@@ -4150,7 +4150,8 @@ const panZoomPlugin = {
       const mx = chart.scales.x.getValueForPixel(px);
       const my = chart.scales.y.getValueForPixel(py);
       const range = getChartRange();
-      const factor = e.deltaY > 0 ? 1.15 : (1 / 1.15);
+      const raw = Math.exp(e.deltaY * 0.0015);
+      const factor = Math.min(1.3, Math.max(1 / 1.3, raw));
 
       applyRange({
         xMin: mx + (range.xMin - mx) * factor,

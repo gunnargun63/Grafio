@@ -30,3 +30,7 @@ Graf-objekter har felter: `id`, `xSym`, `ySym`, `regType`, `customExpr`, `custom
 Generel arbejdshest — ingen forsøgsskabeloner. Eleverne tænker selv variabler og enheder igennem. Til særligt komplekse forsøg (fx Stefan-Boltzmann) laves separate specialapps.
 
 `diff()` differentierer bevidst altid på de rå datapunkter, ikke på en eventuel regression — også når en regression er beregnet. Det er et didaktisk valg: eleven skal se den faktiske numeriske afledede med dens støj. Lav ikke om på dette uden at spørge.
+
+## Kendte begrænsninger
+
+Pan/zoom på touchpad har let synlig rystelse ved meget langsomme scroll. Det er en accepteret begrænsning, ikke en bug. Flere optimeringsforsøg (render-eliminering, requestAnimationFrame-synkronisering, target-smoothing med lerp) har IKKE afhjulpet det — det er sandsynligvis en grundlæggende konsekvens af diskrete browser-events kombineret med en HTML-canvas-baseret graf. Tag ikke runde 4 før der er kommet ny indsigt eller elev-feedback der ændrer prioritet.

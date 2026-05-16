@@ -1,9 +1,8 @@
-# Grafio — fagligt grundlag
+# Grafio — Dokumentation
 
 En dokumentation til lærere af det matematiske og numeriske grundlag for
 Grafio. Formålet er at lærere kan bedømme om værktøjet er solidt nok til
-deres undervisning, og at de kan svare præcist når elever spørger om
-"hvad bruger den egentlig?".
+deres undervisning.
 
 Denne manual antager fysikfaglig og matematisk baggrund på universitetsniveau.
 Den er ikke en brugsanvisning til appen.
@@ -61,23 +60,39 @@ Understøttede funktioner:
 - `ln(x)` (naturlig logaritme), `log(x)` (10-tal), `exp(x)`
 - `sqrt(x)`, `abs(x)`
 
-Trigonometriens grader-konvention er valgt fordi det egner sig bedre til forsøg på fysik B.
+Trigonometriens grader-konvention er valgt fordi det egner sig bedere til forsøg på fysik B.
 Hvis der er behov for radianer i en specifik formel, kan eleven selv konvertere.
 
 ---
 
 ## 3. Regression — fælles principper
 
-Alle regressioner i Grafio minimerer **summen af kvadrerede residualer**:
+Regressionerne bygger på **mindste kvadraters metode**. For modeller der
+fittes direkte i de oprindelige variable (proportionalitet, lineær,
+andengrad, og ikke-lineære fits via Nelder-Mead) minimeres summen af
+kvadrerede residualer i $y$-retningen:
 
 $$
 \text{RSS} = \sum_{i=1}^{n} \bigl(y_i - \hat{y}_i\bigr)^2
 $$
 
-Det er den klassiske mindste kvadraters metode. For modeller der er lineære
-i deres parametre (eller kan lineariseres ved en variabel-transformation)
-bruges en lukket løsning. For ikke-lineære modeller bruges Nelder-Mead
-simplex-optimering — se afsnit 5.
+For modeller der lineariseres ved en transformation (potens, eksponential,
+invers, kvadratrod og potens-heltal) findes parametrene ved mindste
+kvadrater i det **transformerede** rum, fx ved at minimere
+$\sum_i (\ln y_i - \ln \hat{y}_i)^2$ for potens- og eksponentialfit.
+Det er en bevidst forenkling: lukket-form-løsning frem for iterativ
+optimering. Konsekvensen er at fit'et giver lidt anderledes parametre
+end et "rigtigt" ulineært fit i $y$-rummet ville, særligt hvis datasættet
+har stort dynamisk omfang. For typisk fysik-data på gymnasieniveau er
+forskellen sjældent stor nok til at have betydning.
+
+**RMSE rapporteres altid i det oprindelige $y$-rum**, også for de
+transformerede modeller — altså i samme enheder som målingerne. Det er
+gjort for at tallet er sammenligneligt på tværs af regressionstyper og
+let at fortolke for eleverne. Se afsnit 6 for detaljer.
+
+For ikke-lineære modeller (eksponential med offset, invers med offset,
+brugerdefineret) bruges Nelder-Mead simplex-optimering — se afsnit 5.
 
 ### Transformationsstrategi
 
@@ -93,13 +108,6 @@ Grafio følgende modeller før den lineære fit:
 | $y = a\sqrt{x}$ | $u = \sqrt{x}$ | Proportionalitet $y = a \cdot u$ |
 | $y = a \cdot x^n$ (heltal $n$, fast) | $u = x^n$ | Proportionalitet $y = a \cdot u$ |
 
-**Konsekvens:** den fundne fit minimerer RSS i det **transformerede** rum,
-ikke nødvendigvis i det oprindelige. For potens og eksponential betyder
-det at relative afvigelser vægter mere ensartet end absolutte (fordi
-$\ln$ komprimerer store værdier). Det er det almindelige og forventede
-valg i fysikundervisning, men værd at være opmærksom på hvis et datasæt
-har stort dynamisk omfang.
-
 Modeller med en konstant tilføjet (eksponential med offset, $1/(x+b)$ osv.)
 kan ikke lineariseres direkte og fittes derfor med iterativ optimering.
 
@@ -107,17 +115,22 @@ kan ikke lineariseres direkte og fittes derfor med iterativ optimering.
 
 Forskellige transformationer kræver forskellige forudsætninger:
 
-- **Logaritme-baserede** (potens, eksponential): $y > 0$ for alle inkluderede
-  punkter. Punkter med $y \leq 0$ udelades stille fra fit'et.
+- **Eksponentialfit** ($y = a \cdot e^{bx}$): $y > 0$ for alle inkluderede
+  punkter. Punkter med $y \leq 0$ udelades automatisk fra fit'et.
+- **Potensfit med fri eksponent** ($y = a \cdot x^b$): både $x > 0$ og
+  $y > 0$. Punkter der ikke opfylder begge betingelser udelades.
 - **Eksponential med offset**: ingen forudsætning, men der laves et
   grid-search over offset-værdien $c$ — se afsnit 5.
-- **Inverse**: $x \neq 0$. Punkter med $x = 0$ udelades.
+- **Inverse** ($y = a/x$, $y = a/x^2$): $x \neq 0$. Punkter med $x = 0$
+  udelades.
 - **Kvadratrod**: $x \geq 0$ for alle punkter. Hvis nogen punkter har
   $x < 0$, afvises hele fit'et.
 - **Potens (heltal) med $n < 0$**: $x \neq 0$. Punkter med $x = 0$ udelades.
 
-Hvis datasættet ikke opfylder kravet, returneres ingen regression, og
-eleven får en fejlbesked.
+Når punkter udelades pga. kravene, vises antal gyldige punkter i
+resultatboksen sammen med RMSE. Hvis kravene betyder at færre end 2
+punkter er gyldige, kan regressionen ikke beregnes, og eleven får en
+fejlbesked.
 
 ---
 
@@ -192,7 +205,7 @@ fordi heltallige eksponenter altid er definerede).
 Antal frie parametre: $k = 1$.
 
 Denne regressionstype er særligt nyttig når fysikken forudsiger en bestemt
-potenslov (afstandskvadrat $\sim 1/r^2$, stedfunktion i frit fald, Stefan-Boltzmanns lov),
+potenslov (afstandskadrat $\sim 1/r^2$, stedfunktion i frit fald, Stefan-Boltzmanns lov),
 så eleven kan teste den specifikke model snarere end at lade en fri
 eksponent absorbere systematiske fejl.
 
@@ -248,9 +261,13 @@ $10^{-10}$ (eller $10^{-12}$ for brugerdefineret), eller når 2000 iterationer
 er opnået.
 
 Algoritmen er kendt for at konvergere langsommere end gradient-baserede
-metoder, men også for at være robust mod numerisk støj og dårligt
-betingede problemer. Det er det rigtige valg for et undervisnings­værktøj
-hvor brugerne ikke kan forventes at give pæne startgæt.
+metoder, og den har ikke samme konvergensgarantier som specialiserede
+least-squares-metoder som Levenberg-Marquardt. Men den er robust mod
+numerisk støj og dårligt betingede problemer, og den kræver kun at
+modelfunktionen kan evalueres — ingen analytiske afledede. Det gør den
+til et rimeligt og praktisk valg for et undervisnings­værktøj hvor
+brugerne kan definere vilkårlige modeller og hvor pæne startgæt ikke
+kan forventes.
 
 ---
 
@@ -277,8 +294,9 @@ $$
 s = \sqrt{\frac{1}{n-k}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}
 $$
 
-RSE er en bias-korrigeret estimator af spredningen af residualerne under
-antagelse om at modellen er korrekt. Den er statistisk mere meningsfuld
+RSE er den sædvanlige estimator for residualernes (og dermed støjens)
+standardafvigelse under antagelse af at modellen er korrekt og at
+residualerne har samme varians. Den er statistisk mere meningsfuld
 hvis man vil bruge tallet til at konstruere konfidensintervaller for
 parametrene.
 
@@ -339,6 +357,14 @@ $$
 
 Dette er *Standard Error of the Mean* — usikkerheden på middelværdien
 selv, ikke på de enkelte målinger.
+
+**Forudsætningen for at SEM kan tolkes som usikkerheden på middel­værdien**
+er at målingerne er uafhængige gentagelser af samme størrelse, og at
+eventuelle systematiske fejl er negligible. Hvis instrumentet har en
+fast bias, hvis målingerne påvirker hinanden, eller hvis der er drift
+under måleserien, fanger SEM kun den tilfældige spredning — ikke den
+faktiske usikkerhed på resultatet. Det er en pointe der ofte misforstås
+af gymnasieelever, som let tror at $s/\sqrt{n}$ er "hele usikkerheden".
 
 Bemærk forskellen i nævneren mellem spredningen ($n-1$) og RMSE ($n$):
 de to størrelser har forskellige formål, og forskellen er bevidst.
@@ -478,9 +504,13 @@ statistik­værktøj. Følgende er **ikke** implementeret:
 
 - **Usikkerheder på regressionsparametre.** Der rapporteres kun
   punktestimater, ikke standardfejl eller konfidensintervaller på
-  parametrene. Hvis eleven skal angive usikkerhed på en hældning,
-  må de gøre det ud fra spredningen i data, ikke ud fra et
-  bias-korrigeret variance-kovariansmatrix.
+  parametrene. Hvis eleverne skal vurdere usikkerhed på fx en hældning,
+  må det ske ved en særskilt usikkerhedsanalyse — fx ved at gentage
+  måleserien flere gange og se hvordan hældningen varierer, ved manuel
+  vurdering af "plausible fits" gennem datapunkterne, eller ved at
+  bruge et egentligt statistikværktøj. Det er bevidst, fordi formel
+  standardfejl-estimering kræver antagelser (om normalitet og uafhængighed
+  af residualer) som elever sjældent har værktøj til at vurdere.
 - **Vægtede regressioner.** Alle datapunkter vægter ens. Hvis nogle
   målinger har større usikkerhed end andre, kan eleven ekskludere
   dem manuelt, men der er ingen mulighed for at angive måleusikkerhed

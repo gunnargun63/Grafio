@@ -982,6 +982,46 @@
   .icon-moon { display: block; }
   [data-theme="dark"] .icon-sun { display: block; }
   [data-theme="dark"] .icon-moon { display: none; }
+
+  .guide-content {
+    max-height: 70vh;
+    overflow-y: auto;
+    line-height: 1.6;
+    font-size: 14px;
+    padding-right: 8px;
+  }
+  .guide-content h2 {
+    font-size: 16px;
+    margin: 20px 0 8px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 4px;
+  }
+  .guide-content h2:first-child { margin-top: 0; }
+  .guide-content h3 { font-size: 14px; margin: 14px 0 6px; font-weight: 600; }
+  .guide-content ul { margin: 6px 0 10px 20px; padding: 0; }
+  .guide-content li { margin-bottom: 4px; }
+  .guide-content p { margin: 6px 0 10px; }
+  .guide-content hr { border: none; border-top: 1px solid var(--panel-border); margin: 18px 0 14px; }
+  .guide-content code {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 13px;
+    font-family: monospace;
+  }
+  .guide-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .guide-table th, .guide-table td {
+    border: 1px solid var(--panel-border);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .guide-table th { background: var(--panel); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -991,10 +1031,13 @@
     <h1>Grafio <span class="app-subtitle">— fysik dataanalyse</span></h1>
     <p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
   </div>
-  <button class="theme-btn" onclick="toggleTheme()" title="Skift til mørk/lys tilstand" aria-label="Skift tema">
-    <span class="icon-moon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
-    <span class="icon-sun"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
-  </button>
+  <div style="display:flex;gap:6px;align-items:flex-start;">
+    <button class="theme-btn" onclick="openGuideModal()" title="Åbn vejledning">Vejledning</button>
+    <button class="theme-btn" onclick="toggleTheme()" title="Skift til mørk/lys tilstand" aria-label="Skift tema">
+      <span class="icon-moon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      <span class="icon-sun"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+    </button>
+  </div>
 </div>
 
 <div class="toolbar">
@@ -1153,6 +1196,17 @@
     <div class="modal-actions">
       <button onclick="closeModal('csv-modal')">Annullér</button>
       <button class="primary" onclick="applyCSVImport()">Indlæs valgte kolonner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Vejledning -->
+<div class="modal-bg" id="guide-modal" onclick="if(event.target===this)closeModal('guide-modal')">
+  <div class="modal" style="max-width:760px;">
+    <h3>Vejledning til Grafio</h3>
+    <div class="guide-content" id="guide-content"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('guide-modal')">Luk</button>
     </div>
   </div>
 </div>
@@ -5052,6 +5106,12 @@ document.addEventListener('keydown', (ev) => {
   }
 });
 
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') {
+    document.querySelectorAll('.modal-bg.visible').forEach(el => el.classList.remove('visible'));
+  }
+});
+
 let autosaveTimer = null;
 function scheduleAutosave() {
   clearTimeout(autosaveTimer);
@@ -5421,6 +5481,139 @@ function applyCSVImport() {
   closeModal('csv-modal');
   csvImportData = null;
   render();
+}
+
+const VEJLEDNING_HTML = `
+<h2>1. Indtast data</h2>
+<p>I tabellen midt på siden skriver du dine målinger.</p>
+<ul>
+  <li>Klik i en celle og skriv et tal</li>
+  <li>Tryk <strong>piletast</strong> (← ↑ → ↓) for at flytte til nabocellen — det er hurtigere end at klikke</li>
+  <li>Tryk <strong>Tab</strong> eller <strong>Enter</strong> for at gå videre. Tryk <strong>Enter</strong> i sidste række for at oprette en ny række</li>
+</ul>
+<h3>Navngiv kolonner</h3>
+<p>Klik på kolonneoverskriften og skriv fx <code>tid (s)</code> eller <code>U (V)</code>. Det i parentes er enheden — den vises automatisk på grafer.</p>
+<h3>Indsæt fra Excel eller LoggerPro</h3>
+<p>Markér flere kolonner i Excel og kopier (⌘+C). Klik på den første celle i Grafio og indsæt (⌘+V). Alle målingerne kommer ind på én gang.</p>
+<h3>Hvordan skrives tal?</h3>
+<ul>
+  <li><strong>Decimal:</strong> både komma og punktum virker. <code>3.14</code> og <code>3,14</code> er det samme tal.</li>
+  <li><strong>Store og små tal med eksponent:</strong> skriv <code>3e3</code> (eller <code>3E3</code>) for 3000. Skriv <code>1.5e-4</code> for 0,00015.</li>
+  <li><strong>Undgå tusindtalsseparatorer.</strong> Skriv <code>12500</code>, ikke <code>12.500</code> eller <code>12,500</code> (Grafio vil tolke det som 12,5).</li>
+</ul>
+<hr>
+<h2>2. Konstanter</h2>
+<p>Til venstre for tabellen er der en sidebar med <strong>Konstanter</strong>. Brug den til faste værdier som tyngdeacceleration, lysets fart, eller en baggrundstælling der skal trækkes fra alle målinger.</p>
+<p>Klik <strong>+ Tilføj konstant</strong>, skriv et symbol (fx <code>g</code>), en værdi (fx <code>9,82</code>) og en enhed (fx <code>m/s²</code>). Konstanten kan derefter bruges i alle formler ved sit symbol.</p>
+<hr>
+<h2>3. Beregnede kolonner</h2>
+<p>Klik <strong>+ Tilføj beregnet kolonne</strong> for at lave en kolonne hvor værdierne udregnes fra andre kolonner og konstanter.</p>
+<p>Skriv et symbol (fx <code>R</code>), en enhed (fx <code>Ω</code>), og en <strong>formel</strong>.</p>
+<h3>Hvilke operatorer kan jeg bruge?</h3>
+<ul>
+  <li><code>+</code> <code>-</code> <code>*</code> <code>/</code> til plus, minus, gange, division</li>
+  <li><code>^</code> til potens, fx <code>t^2</code></li>
+  <li>Parenteser til at gruppere, fx <code>(s2 - s1)/(t2 - t1)</code></li>
+</ul>
+<h3>Hvilke funktioner findes der?</h3>
+<ul>
+  <li><code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code> — vinkler er i <strong>grader</strong></li>
+  <li><code>asin(x)</code>, <code>acos(x)</code>, <code>atan(x)</code> — returnerer grader</li>
+  <li><code>ln(x)</code> — naturlig logaritme</li>
+  <li><code>log(x)</code> — logaritme med grundtal 10</li>
+  <li><code>exp(x)</code> — <em>e</em> opløftet i <em>x</em></li>
+  <li><code>sqrt(x)</code> — kvadratrod</li>
+  <li><code>abs(x)</code> — absolut værdi</li>
+</ul>
+<h3>Eksempler</h3>
+<ul>
+  <li>Modstand fra Ohms lov: <code>U/I</code></li>
+  <li>Korrigeret tælletal: <code>N - N_b</code> (hvor <code>N_b</code> er en konstant)</li>
+  <li>Stedet fra konstant acceleration: <code>0,5*a*t^2</code></li>
+  <li>Kinetisk energi: <code>0,5*m*v^2</code></li>
+</ul>
+<hr>
+<h2>4. Afledet kolonne med <code>diff()</code></h2>
+<p>Hvis du har målt sted som funktion af tid og vil have hastigheden, så opret en beregnet kolonne med formlen <code>diff(s, t)</code>. Det betyder: <em>beregn ændringen i <code>s</code> divideret med ændringen i <code>t</code> for hver række</em>.</p>
+<p>Det er numerisk differentiation — Grafio kigger på naboværdier i tabellen og laver forskellen. Det virker bedst når dine målepunkter ligger pænt i rækkefølge.</p>
+<p><code>diff()</code> skal stå alene som hele formlen. Du kan ikke skrive <code>2*diff(s,t)</code> eller bruge <code>diff</code> inde i et større udtryk.</p>
+<hr>
+<h2>5. Lav en graf</h2>
+<p>Klik <strong>+ Tilføj graf</strong> under tabellen.</p>
+<p>Vælg hvilken kolonne der skal være på <strong>x-aksen</strong> og hvilken på <strong>y-aksen</strong>. Du kan vælge mellem alle dine kolonner — også beregnede.</p>
+<p>Grafen tegnes automatisk.</p>
+<hr>
+<h2>6. Regression — find den bedste model</h2>
+<p>Vælg en <strong>regressionstype</strong> fra dropdown-menuen ved grafen:</p>
+<ul>
+  <li><strong>Proportionalitet</strong> y = a·x — bruges hvor det skal gå gennem (0, 0)</li>
+  <li><strong>Lineær</strong> y = a·x + b — en almindelig ret linje</li>
+  <li><strong>Andengrad</strong> y = a·x² + b·x + c — parabel</li>
+  <li><strong>Potens (heltal)</strong> y = a·x<sup>n</sup> — du vælger selv heltallet <em>n</em></li>
+  <li><strong>Potens</strong> y = a·x<sup>b</sup> — <em>b</em> er en fri eksponent som programmet finder</li>
+  <li><strong>Eksponential</strong> y = a·e<sup>bx</sup> — vækst eller henfald</li>
+  <li><strong>Eksponential med offset</strong> y = a·e<sup>bx</sup> + c — fx Newtons afkøling</li>
+  <li><strong>Invers</strong> y = a/x og <strong>Invers²</strong> y = a/x² — Coulomb, lyseffekt vs. afstand</li>
+  <li><strong>Kvadratrod</strong> y = a√x</li>
+  <li><strong>Brugerdefineret</strong> — du skriver selv en formel og startgæt på parametrene</li>
+</ul>
+<p>Når regressionen er fundet vises <strong>formel, parametre og RMSE</strong> under grafen. RMSE er et mål for hvor godt fit'et passer — <em>jo lavere, jo bedre</em>. Et lille RMSE betyder at fit-kurven ligger tæt på dine målepunkter. Dog skal man passe på med fortolkning af selve værdien af RMSE. Den skal ses i sammenhæng med y-aksens værdier.</p>
+<hr>
+<h2>7. Tangent, integral og fit-interval</h2>
+<p>Til hver graf har du tre knapper der kan slås til:</p>
+<ul>
+  <li><strong>Vis tangent</strong> — du skriver en x-værdi, og Grafio tegner tangentlinjen og viser dens hældning. Hvis du har en regression, bruges fit-kurven; ellers bruges dine datapunkter.</li>
+  <li><strong>Vis integral</strong> — du skriver et interval <em>[fra, til]</em>, og Grafio skygger arealet under kurven og viser arealets størrelse. Både integral af data (trapezregel) og fit (hvis regression er valgt).</li>
+  <li><strong>Vis fit-interval</strong> — du afgrænser hvilke datapunkter regressionen bruger. Punkter uden for intervallet tegnes nedtonede og indgår ikke i fit'et. Brug det hvis kun en del af dine målinger følger den model du fitter.</li>
+</ul>
+<hr>
+<h2>8. "Tegn afledet"-knappen</h2>
+<p>Denne knap er forskellig fra <code>diff()</code>-kolonnen. Den opretter en <strong>ny graf</strong> der viser den afledede af din nuværende graf — altså hvordan y-størrelsen ændrer sig per x-enhed.</p>
+<p><code>diff()</code> regner i tabellen og giver en kolonne du kan bruge videre. "Tegn afledet" laver bare en graf direkte ud fra punkterne.</p>
+<hr>
+<h2>9. Tilpas grafen</h2>
+<ul>
+  <li><strong>Akse-værdier</strong> — øverst på grafen er der felter til x og y. Skriv præcise grænser eller lad dem stå tomme for automatisk skala.</li>
+  <li><strong>Auto-knap</strong> — nulstiller akserne til automatisk, så datapunkterne fylder hele grafvinduet.</li>
+  <li><strong>Vis origo</strong> — sørger for at både x = 0 og y = 0 er med på grafen</li>
+  <li><strong>Pan og zoom</strong> — træk grafen med musen for at flytte den, scroll for at zoome (centreret omkring musen)</li>
+  <li><strong>Forbind punkter</strong> — tegner en linje mellem dine målepunkter (uden om regressionskurven). Nyttigt når data følger en kurve uden klar matematisk model.</li>
+</ul>
+<hr>
+<h2>10. Gem dit arbejde</h2>
+<p>Tre måder:</p>
+<ul>
+  <li><strong>Gem i browser</strong> — hurtigt og nemt. Virker kun på <em>denne</em> computer og <em>denne</em> browser.</li>
+  <li><strong>Download projekt (.json)</strong> — gemmer alt: tabel, formler, grafer, konstanter, indstillinger. Den fil kan du flytte mellem computere eller dele med andre.</li>
+  <li><strong>Download data (.csv)</strong> — gemmer kun datatabellen som en regneark-fil der kan åbnes i Excel eller LoggerPro.</li>
+</ul>
+<p>For at hente noget ind igen: <strong>Indlæs fra browser</strong> eller <strong>Indlæs projekt (.json)</strong>.</p>
+<p>Grafio gemmer også automatisk i baggrunden — du ser tidspunktet ved siden af knapperne. Hvis du lukker fanen og åbner den igen, er din seneste version der.</p>
+<hr>
+<h2>11. Mørk tilstand</h2>
+<p>Klik på måne-ikonet øverst til højre for at skifte mellem lys og mørk tilstand. Valget huskes næste gang du åbner Grafio.</p>
+<hr>
+<h2>12. Genveje</h2>
+<table class="guide-table">
+  <thead>
+    <tr><th>Genvej</th><th>Hvad</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Piletaster</td><td>Flyt mellem celler</td></tr>
+    <tr><td><strong>Tab</strong></td><td>Næste celle</td></tr>
+    <tr><td><strong>Enter</strong></td><td>Næste række (eller opret ny række)</td></tr>
+    <tr><td><strong>⌘+Z</strong> / <strong>Ctrl+Z</strong></td><td>Fortryd</td></tr>
+    <tr><td><strong>⌘+Shift+Z</strong> / <strong>Ctrl+Y</strong></td><td>Gendan</td></tr>
+    <tr><td><strong>⌘+V</strong></td><td>Indsæt data fra Excel m.fl.</td></tr>
+    <tr><td>Klik checkboks i en række</td><td>Slå rækken til/fra (ekskludér fra fit og statistik)</td></tr>
+    <tr><td><strong>Vis statistik</strong></td><td>Vis middelværdi, spredning og statistisk usikkerhed under hver kolonne</td></tr>
+  </tbody>
+</table>
+`;
+
+function openGuideModal() {
+  document.getElementById('guide-content').innerHTML = VEJLEDNING_HTML;
+  document.getElementById('guide-modal').classList.add('visible');
 }
 
 function closeModal(id) {

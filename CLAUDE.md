@@ -31,6 +31,10 @@ Generel arbejdshest — ingen forsøgsskabeloner. Eleverne tænker selv variable
 
 `diff()` differentierer bevidst altid på de rå datapunkter, ikke på en eventuel regression — også når en regression er beregnet. Det er et didaktisk valg: eleven skal se den faktiske numeriske afledede med dens støj. Lav ikke om på dette uden at spørge.
 
+## Dokumentation
+
+`VEJLEDNING.md` indeholder elev-manualen og er embedded i `index.html` som en HTML-streng i JS-konstanten `VEJLEDNING_HTML` (placeret lige før `closeModal`-funktionen). Indholdet vises i Vejledning-modalen. Hvis `VEJLEDNING.md` opdateres, skal `VEJLEDNING_HTML`-strengen i `index.html` også opdateres manuelt.
+
 ## Kendte begrænsninger
 
 Pan/zoom på touchpad har let synlig rystelse ved langsomme scroll på VISSE datasæt. Det ser ud til at være regressionstype-afhængigt: andengrad-fit ryster typisk ikke, mens proportionalitet og eksponentiel gør. Datasætstørrelse, beregnede vs. rå kolonner, akse-grænser, og synlighed af plugins er udelukket som årsager.
@@ -41,3 +45,6 @@ Følgende optimeringsforsøg har IKKE afhjulpet det:
 - eliminering af render() under gestus
 
 Det er en accepteret begrænsning, ikke en bug. Tag ikke en ny optimerings-runde før der er kommet (a) ny indsigt i hvorfor regressionstype påvirker det, eller (b) konkret elev-feedback der ændrer prioritet.
+
+"Ideer til fremtidige opgaver": 
+Kopier kolonner til clipboard for nem eksport til andre programmer (mest sandsynligt som per-kolonne knap der kopierer x+aktuel kolonne).

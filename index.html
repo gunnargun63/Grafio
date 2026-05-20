@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Cache-busting: tving browseren til altid at hente friskt index.html.
+     GitHub Pages serverer som default med en Cache-Control der kan holde
+     siden i op til 10 minutter, og CDN'en (Fastly) kan også cache.
+     Disse meta-tags fortæller browseren at den ikke må bruge en cached
+     kopi uden at validere mod serveren først. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Grafio – fysik dataanalyse</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -1030,6 +1038,10 @@
   <div>
     <h1>Grafio <span class="app-subtitle">— fysik dataanalyse</span></h1>
     <p class="subtitle">Indtast måleværdier, opret beregnede kolonner, og tilføj grafer med regression.</p>
+    <!-- Build-stempel: synligt for at kunne verificere at den nyeste version
+         er deployet og ikke en cached gammel kopi. Opdater BUILD_VERSION
+         manuelt før hvert commit til GitHub. -->
+    <p class="subtitle" style="font-size:11px;opacity:0.55;margin-top:-4px;">Version: <span id="build-version">2026-05-20-b</span></p>
   </div>
   <div style="display:flex;gap:6px;align-items:flex-start;">
     <button class="theme-btn" onclick="openGuideModal()" title="Åbn vejledning">Vejledning</button>
@@ -1133,6 +1145,11 @@
 </div>
 
 <!-- Græsk/specialtegn-palette -->
+<!-- Hver .symbol-btn har sin egen onmousedown="event.preventDefault()" så
+     fokus ikke flyttes væk fra det aktive inputfelt når man klikker på en
+     symbol-knap. Det er placeret på selve knapperne i stedet for på div'en,
+     fordi preventDefault på containerniveau kan have utilsigtede effekter
+     på fokus-håndtering i nogle browsere. -->
 <div class="symbol-palette" id="symbol-palette">
   <div class="symbol-palette-header">
     <span class="symbol-palette-title">Indsæt tegn</span>
@@ -1986,6 +2003,9 @@ function renderTable() {
 }
 
 function formatColHeader(col) {
+  // Hvis brugeren er midt i en redigering, vis præcis det de har skrevet
+  // (også hvis det ikke kan parses som symbol+enhed endnu).
+  if (col.rawHeader != null && col.rawHeader !== '') return col.rawHeader;
   if (!col.symbol) return '(navngiv)';
   if (col.unit) return `${col.symbol} (${col.unit})`;
   return col.symbol;
@@ -2091,20 +2111,61 @@ function insertSymbol(sym) {
     alert('Klik først i det felt hvor du vil indsætte tegnet.');
     return;
   }
-  const inp = lastFocusedInput;
+  let inp = lastFocusedInput;
+
+  // Hvis target ikke længere er i DOM'et (kan ske efter et render()), så
+  // forsøg at finde det via document.activeElement. Sker fx hvis et tidligere
+  // change-event har trigget render() og erstattet input-noden.
+  if (!inp.isConnected) {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+        && !active.closest('.symbol-palette')) {
+      inp = active;
+      lastFocusedInput = active;
+    } else {
+      alert('Klik først i det felt hvor du vil indsætte tegnet.');
+      return;
+    }
+  }
+
   const start = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
   const end = inp.selectionEnd != null ? inp.selectionEnd : inp.value.length;
   const before = inp.value.slice(0, start);
   const after = inp.value.slice(end);
-  inp.value = before + sym + after;
-  // Sæt markør efter det indsatte tegn
+  const newValue = before + sym + after;
+  inp.value = newValue;
   const newPos = start + sym.length;
-  // Refokuser og placér markør (giv DOM'en et øjeblik)
   inp.focus();
   inp.setSelectionRange(newPos, newPos);
-  // Trig input-event så bundne handlere (oninput, autosize osv.) fyrer
+
+  // Trig input-event så autosize osv. fyrer
   inp.dispatchEvent(new Event('input', { bubbles: true }));
-  inp.dispatchEvent(new Event('change', { bubbles: true }));
+
+  // For header-input: kald updateColumnHeader direkte i stedet for at stole
+  // på at change-eventet fyrer onchange-attributten. Manuelt dispatched
+  // change-events fra dispatchEvent fyrer ikke pålideligt inline onchange-
+  // handlere i alle browsere, og det er sandsynligvis grunden til at tegn
+  // tidligere "forsvandt" når man indsatte dem i en header.
+  if (inp.classList.contains('col-name-input')) {
+    // Find kolonneindekset ud fra hvilken th-celle inputtet sidder i
+    const th = inp.closest('th');
+    if (th) {
+      const headerRow = th.parentElement;
+      // Header-rækken har struktur: <th>#</th><th>✓</th><th>kol0</th><th>kol1</th>...
+      // Find index for kolonneoverskrift (træk de to første ikke-kolonne-cellers offset fra)
+      const allTh = Array.from(headerRow.children);
+      const thIdx = allTh.indexOf(th);
+      const colIdx = thIdx - 2; // -2 fordi de to første th'er er # og ✓
+      if (colIdx >= 0 && colIdx < state.columns.length) {
+        updateColumnHeader(colIdx, newValue);
+        render();
+      }
+    }
+  } else {
+    // For andre input-typer: prøv det almindelige change-event
+    // (cellen lytter på onblur, så change er stort set ligegyldig dér)
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
 
 /* =====================================================================
@@ -2295,6 +2356,11 @@ function toggleRowIncluded(rowIdx) {
 
 function updateColumnHeader(idx, value) {
   pushUndo();
+  // Gem rå tekst som brugeren har skrevet — så uafsluttede headere
+  // (fx "R (" mens man er ved at indsætte enhed) overlever et render().
+  // parseColHeader er destruktiv og kasserer alt der ikke kan blive til
+  // symbol/enhed, men feltet på skærmen skal stadig vise det rå input.
+  state.columns[idx].rawHeader = value;
   const parsed = parseColHeader(value);
   const oldSymbol = state.columns[idx].symbol;
   state.columns[idx].symbol = parsed.symbol;
@@ -3781,8 +3847,46 @@ function removeCustomParam(id, name) {
 }
 
 /* Kopiér et chart-canvas direkte til udklipsholder som PNG.
-   which = 'main' eller 'residual'. Bevarer aspect ratio og opløsning. */
+   which = 'main' eller 'residual'. Bevarer aspect ratio og opløsning.
+   I dark mode skifter vi midlertidigt til light tema og re-renderer
+   graferne, så det kopierede billede har sort tekst på hvid baggrund —
+   ellers ville lyse dark-mode-akser blive ulæselige på den hvide
+   baggrund vi pakker billedet ind i. */
 async function copyChart(id, which) {
+  const insts = chartInstances[id];
+  if (!insts || !insts[which]) {
+    showToast('Grafen er ikke klar endnu.');
+    return;
+  }
+
+  // Hvis vi er i dark mode: skift midlertidigt til light, re-render
+  // graferne (Chart.js læser farver fra CSS-vars via chartThemeColors()),
+  // vent én frame så canvas er gentegnet, og skift derefter tilbage.
+  const htmlEl = document.documentElement;
+  const wasDark = htmlEl.getAttribute('data-theme') === 'dark';
+  if (wasDark) {
+    htmlEl.setAttribute('data-theme', 'light');
+    renderGraphs();
+    // Vent på at browseren tegner det nye canvas. requestAnimationFrame
+    // alene er ikke nok — Chart.js animation:false betyder canvas opdateres
+    // synkront, men en ekstra rAF er sikrere på tværs af browsere.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  try {
+    await doCopyChart(id, which);
+  } finally {
+    if (wasDark) {
+      htmlEl.setAttribute('data-theme', 'dark');
+      renderGraphs();
+    }
+  }
+}
+
+/* Selve kopier-logikken — adskilt fra copyChart, så vi kan wrappe et
+   midlertidigt theme-skifte rundt om den. Antager at chart-instansen
+   allerede er gentegnet med de farver der ønskes i outputtet. */
+async function doCopyChart(id, which) {
   const insts = chartInstances[id];
   if (!insts || !insts[which]) {
     showToast('Grafen er ikke klar endnu.');
@@ -3869,29 +3973,37 @@ async function copyChart(id, which) {
     });
   }
 
-  canvas.toBlob(async (blob) => {
-    if (!blob) {
-      showToast('Kunne ikke generere billede.');
-      return;
-    }
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
-      ]);
-      showToast(which === 'main' ? 'Graf kopieret' : 'Residualplot kopieret');
-    } catch (err) {
-      // Fallback: download som fil hvis clipboard ikke virker
-      console.warn('Clipboard fejlede, downloader i stedet:', err);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const suffix = which === 'main' ? 'graf' : 'residualer';
-      a.download = suffix + '_' + new Date().toISOString().slice(0, 10) + '.png';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('Udklipsholder ikke tilgængelig — billedet er downloadet');
-    }
-  }, 'image/png');
+  // Wrap toBlob i et Promise så vi (og dermed copyChart's finally-blok)
+  // kan vente på at clipboard-skrivningen faktisk er færdig før vi
+  // skifter temaet tilbage. Ellers risikerer vi at gendanne dark-mode
+  // mens blob/clipboard endnu ikke er bearbejdet.
+  await new Promise(resolve => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showToast('Kunne ikke generere billede.');
+        resolve();
+        return;
+      }
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast(which === 'main' ? 'Graf kopieret' : 'Residualplot kopieret');
+      } catch (err) {
+        // Fallback: download som fil hvis clipboard ikke virker
+        console.warn('Clipboard fejlede, downloader i stedet:', err);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const suffix = which === 'main' ? 'graf' : 'residualer';
+        a.download = suffix + '_' + new Date().toISOString().slice(0, 10) + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Udklipsholder ikke tilgængelig — billedet er downloadet');
+      }
+      resolve();
+    }, 'image/png');
+  });
 }
 
 /* Konvertér HTML-element til en plain-text-streng der ser pænt ud på canvas.
@@ -5649,18 +5761,21 @@ function confirmReset() {
    OPSTART
    ===================================================================== */
 
-// Tjek for ?fresh=1 i URL'en — udvikler-workflow til at ignorere autosave
+// Standard: altid frisk start ved åbning. Eleverne forventer at programmet
+// åbner blankt — og hvis de vil bevare deres arbejde, bruger de "Gem i
+// browser" / "Download projekt" som i ethvert andet program.
+// Hvis du vil have automatisk gendannelse, sæt ?resume=1 i URL'en.
 const urlParams = new URLSearchParams(window.location.search);
-const freshStart = urlParams.get('fresh') === '1';
+const resumeLast = urlParams.get('resume') === '1';
 
-if (freshStart) {
-  resetToDefault();
-} else {
+if (resumeLast) {
   loadAutosaved();
   // Hvis autosave gav en helt tom tilstand (fx ved første åbning), brug default
   if (state.columns.length === 0 && state.rows.length === 0 && state.constants.length === 0) {
     resetToDefault();
   }
+} else {
+  resetToDefault();
 }
 render();
 

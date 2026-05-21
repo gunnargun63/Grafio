@@ -1041,7 +1041,7 @@
     <!-- Build-stempel: synligt for at kunne verificere at den nyeste version
          er deployet og ikke en cached gammel kopi. Opdater BUILD_VERSION
          manuelt før hvert commit til GitHub. -->
-    <p class="subtitle" style="font-size:11px;opacity:0.55;margin-top:-4px;">Version: <span id="build-version">2026-05-20-b</span></p>
+    <p class="subtitle" style="font-size:11px;opacity:0.55;margin-top:-4px;">Version: <span id="build-version">2026-05-21-a</span></p>
   </div>
   <div style="display:flex;gap:6px;align-items:flex-start;">
     <button class="theme-btn" onclick="openGuideModal()" title="Åbn vejledning">Vejledning</button>
@@ -1318,6 +1318,64 @@ function parseNum(s) {
   s = String(s).trim();
   if (s === '') return NaN;
   return parseFloat(s.replace(',', '.'));
+}
+
+/* displayCellValue: bestem hvad en datacelle skal vise, baseret på den
+   rå streng brugeren har indtastet eller importeret.
+
+   Designvalg: vi vil ikke ændre hvad brugeren har skrevet manuelt
+   ("0,5" forbliver "0,5", ikke "0,5000"), men hvis importerede data har
+   mange cifre (fx "96.989998556557111" fra Graphical Analysis), skal de
+   afrundes til 4 betydende cifre i visningen. Den rå streng gemmes
+   stadig i state, så fuld præcision bevares til beregninger og
+   eksport — vi viser bare en afrundet version.
+
+   Reglen: afrund kun hvis strengen er et gyldigt tal OG har mere end 6
+   tegn (groft anslået for at fange importerede pseudo-præcise tal,
+   men ikke fornuftige målinger som "12,345"). Brug formatNum til at
+   producere et tal med 4 betydende cifre. */
+function displayCellValue(rawStr) {
+  if (rawStr == null || rawStr === '') return '';
+  const s = String(rawStr).trim();
+  if (s === '') return '';
+  // Hvis det ikke er et tal, vis præcis hvad der står
+  const v = parseNum(s);
+  if (!isFinite(v)) return s;
+  // Tæl betydende cifre i den rå streng (ignorer fortegn, decimaltegn,
+  // og førende/bagstillede nuller før første/efter sidste betydende ciffer)
+  const sigCount = countSignificantDigits(s);
+  if (sigCount <= 4) {
+    // Brugeren har skrevet noget kort og rent — bevar det som det er
+    return s;
+  }
+  // Tallet har "for mange" cifre — vis det afrundet til 4 betydende cifre
+  return formatNum(v, 4);
+}
+
+/* Tæl antallet af betydende cifre i en talstreng. Bruges af
+   displayCellValue til at afgøre om et tal skal afrundes i visningen.
+   Regler: førende nuller tæller ikke. Bagstillede nuller efter
+   decimaltegn tæller. Eksempler:
+     "0,500"   → 3
+     "1234"    → 4
+     "0,00123" → 3
+     "1,2345"  → 5 */
+function countSignificantDigits(s) {
+  // Normaliser: erstat komma med punkt, fjern fortegn
+  s = String(s).trim().replace(',', '.').replace(/^[+-]/, '');
+  // Find første ikke-nul-ciffer
+  const match = s.match(/[1-9]/);
+  if (!match) {
+    // Tallet er 0 eller består kun af nuller — 1 betydende ciffer per konvention
+    return 1;
+  }
+  const firstSig = match.index;
+  // Tæl cifre fra første betydende og frem (ignorer decimaltegn)
+  let count = 0;
+  for (let i = firstSig; i < s.length; i++) {
+    if (/[0-9]/.test(s[i])) count++;
+  }
+  return count;
 }
 
 function formatNum(v, sigFigs = 4) {
@@ -1934,11 +1992,17 @@ function renderTable() {
 
     state.columns.forEach((col, colIdx) => {
       if (col.type === 'data') {
+        const rawVal = row.values[col.symbol] || '';
+        const displayVal = displayCellValue(rawVal);
+        // Vis afrundet værdi i feltet, men gem den rå (fulde præcision)
+        // streng som et data-raw-attribut. Når brugeren klikker i feltet,
+        // skifter cellOnFocus til den rå værdi for redigering.
         rowHTML += `<td class="data-cell">
           <input type="text" class="cell" inputmode="decimal"
-                 value="${escAttr(row.values[col.symbol] || '')}"
-                 onfocus="cellOnFocus(${rowIdx}, '${escAttr(col.symbol)}')"
-                 onblur="cellOnBlur(${rowIdx}, '${escAttr(col.symbol)}')"
+                 value="${escAttr(displayVal)}"
+                 data-raw="${escAttr(rawVal)}"
+                 onfocus="cellOnFocus(${rowIdx}, '${escAttr(col.symbol)}', this)"
+                 onblur="cellOnBlur(${rowIdx}, '${escAttr(col.symbol)}', this)"
                  oninput="updateCellLive(${rowIdx}, '${escAttr(col.symbol)}', this.value)"
                  onkeydown="cellKeyDown(event, ${rowIdx}, ${colIdx})"
                  onpaste="cellPaste(event, ${rowIdx}, ${colIdx})">
@@ -2293,12 +2357,29 @@ function updateCell(rowIdx, sym, value) {
             Det giver et checkpoint, så hvis brugeren skriver i celle A, blur'er,
             skriver i celle B og trykker Ctrl+Z, så ruller første Ctrl+Z B's
             ændring tilbage (ikke begge på én gang). */
-function cellOnFocus(rowIdx, sym) {
+function cellOnFocus(rowIdx, sym, inp) {
   pushUndo();
+  // Skift til rå værdi for redigering, så brugeren kan se og ændre den
+  // fulde præcision (fx hvis et importeret tal er afrundet i visningen).
+  if (inp) {
+    const raw = inp.getAttribute('data-raw');
+    if (raw != null && raw !== inp.value) {
+      inp.value = raw;
+      // Markér hele teksten så brugeren let kan overskrive eller redigere
+      inp.select();
+    }
+  }
 }
 
-function cellOnBlur(rowIdx, sym) {
+function cellOnBlur(rowIdx, sym, inp) {
   pushUndo();
+  // Skift tilbage til formateret visning og opdater data-raw med
+  // brugerens nye værdi (hvis de ændrede noget).
+  if (inp) {
+    const currentVal = inp.value;
+    inp.setAttribute('data-raw', currentVal);
+    inp.value = displayCellValue(currentVal);
+  }
 }
 
 /* updateCellLive bruges ved oninput — gemmer værdien og opdaterer

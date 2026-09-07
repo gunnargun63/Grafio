@@ -2455,6 +2455,12 @@ function updateColumnHeader(idx, value) {
       }
     }
   }
+  if (oldSymbol && parsed.symbol && oldSymbol !== parsed.symbol) {
+    for (const g of state.graphs) {
+      if (g.xSym === oldSymbol) g.xSym = parsed.symbol;
+      if (g.ySym === oldSymbol) g.ySym = parsed.symbol;
+    }
+  }
 }
 
 function updateConstant(idx, key, value) {

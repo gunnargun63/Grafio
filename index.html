@@ -4646,6 +4646,11 @@ function renderGraphs() {
 }
 
 function buildGraph(g) {
+  const old = chartInstances[g.id];
+  if (old) {
+    if (old.main) { old.main.destroy(); old.main = null; }
+    if (old.residual) { old.residual.destroy(); old.residual = null; }
+  }
   const xCol = state.columns.find(c => c.symbol === g.xSym);
   const yCol = state.columns.find(c => c.symbol === g.ySym);
   const resultBox = document.getElementById(`result-${g.id}`);
